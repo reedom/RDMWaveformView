@@ -61,16 +61,13 @@ fileprivate class RDMWaveformImageController {
   // MARK: - Properties of operation
 
   /// Currently running renderer
-  private var inProgressWaveformRenderOperation: RDMWaveformRenderOperation? {
+  private var inProgressWaveformRenderOperation: RDMWaveformLoadOperation? {
     willSet {
       if newValue !== inProgressWaveformRenderOperation {
         inProgressWaveformRenderOperation?.cancel()
       }
     }
   }
-
-  /// The render operation used to render the current waveform image
-  private var cachedWaveformRenderOperation: RDMWaveformRenderOperation?
 
   /// Whether rendering for the current asset failed
   private var renderForCurrentAssetFailed = false
@@ -86,7 +83,7 @@ fileprivate class RDMWaveformImageController {
 
   /// MARK: - Rendering
   func render(attributes: RDMWaveformAttributes, calculator: RDMWaveformCalculator) {
-    let operation = RDMWaveformRenderOperation(attributes: attributes, calculator: calculator) { [weak self] image in
+    let operation = RDMWaveformLoadOperation(attributes: attributes, calculator: calculator) { [weak self] image in
       DispatchQueue.main.async {
         guard let self = self else { return }
 
@@ -96,7 +93,6 @@ fileprivate class RDMWaveformImageController {
         self.imageView.frame = CGRect(origin: self.imageView.frame.origin, size: calculator.viewSize)
         self.imageView.isHidden = false
         self.renderingInProgress = false
-        self.cachedWaveformRenderOperation = self.inProgressWaveformRenderOperation
         self.inProgressWaveformRenderOperation = nil
         print("sampleRange: \(calculator.sampleRange)")
         print("frame: \(self.imageView.frame)")

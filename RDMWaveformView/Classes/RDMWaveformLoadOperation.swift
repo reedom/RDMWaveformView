@@ -22,7 +22,7 @@ public func process(_ normalizedSamples: inout [Float], noiseFloor: Float) {
 }
 
 /// Operation used for rendering waveform images
-final public class RDMWaveformRenderOperation: Operation {
+final public class RDMWaveformLoadOperation: Operation {
   let attributes: RDMWaveformAttributes
   let calculator: RDMWaveformCalculator
 
