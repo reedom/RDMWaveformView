@@ -1,6 +1,7 @@
 use_frameworks!
 
 target 'RDMWaveformView_Example' do
+  pod 'SparseRanges', :git => 'git@reedom.github.com:reedom/SparseRanges.git'
   pod 'RDMWaveformView', :path => '../'
 
   target 'RDMWaveformView_Tests' do

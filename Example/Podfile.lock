@@ -16,7 +16,9 @@ PODS:
     - iOSSnapshotTestCase (~> 6.0)
     - Nimble (~> 8.0)
   - Quick (2.0.0)
-  - RDMWaveformView (0.1.0)
+  - RDMWaveformView (0.1.0):
+    - SparseRanges
+  - SparseRanges (0.1.0)
 
 DEPENDENCIES:
   - FBSnapshotTestCase
@@ -24,6 +26,7 @@ DEPENDENCIES:
   - Nimble-Snapshots
   - Quick (~> 2.0.0)
   - RDMWaveformView (from `../`)
+  - "SparseRanges (from `git@reedom.github.com:reedom/SparseRanges.git`)"
 
 SPEC REPOS:
   https://github.com/cocoapods/specs.git:
@@ -36,6 +39,13 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   RDMWaveformView:
     :path: "../"
+  SparseRanges:
+    :git: "git@reedom.github.com:reedom/SparseRanges.git"
+
+CHECKOUT OPTIONS:
+  SparseRanges:
+    :commit: 2dc06789ef848bca828777cf7fc17abbdb967a15
+    :git: "git@reedom.github.com:reedom/SparseRanges.git"
 
 SPEC CHECKSUMS:
   FBSnapshotTestCase: 094f9f314decbabe373b87cc339bea235a63e07a
@@ -43,8 +53,9 @@ SPEC CHECKSUMS:
   Nimble: 45f786ae66faa9a709624227fae502db55a8bdd0
   Nimble-Snapshots: 2d6d712ceb2d1850d88f850fbd7c732618106022
   Quick: ce1276c7c27ba2da3cb2fd0cde053c3648b3b22d
-  RDMWaveformView: a06eb7ddd2858ce97d246d9cdc46125b512d8e89
+  RDMWaveformView: ea747e6fb6272164bb9ff9c5e735798ad0b87bf5
+  SparseRanges: 260768892c0ae4bdb55d67b1a9d2e59019b4cc1f
 
-PODFILE CHECKSUM: 73acac3ab73eecfe668b44d0cc8825237f5990c9
+PODFILE CHECKSUM: 91453427261bf70c409161ea81ff2efc412d6867
 
 COCOAPODS: 1.6.1
