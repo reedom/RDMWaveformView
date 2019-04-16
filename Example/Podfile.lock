@@ -1,0 +1,50 @@
+PODS:
+  - FBSnapshotTestCase (2.1.4):
+    - FBSnapshotTestCase/SwiftSupport (= 2.1.4)
+  - FBSnapshotTestCase/Core (2.1.4)
+  - FBSnapshotTestCase/SwiftSupport (2.1.4):
+    - FBSnapshotTestCase/Core
+  - iOSSnapshotTestCase (6.0.3):
+    - iOSSnapshotTestCase/SwiftSupport (= 6.0.3)
+  - iOSSnapshotTestCase/Core (6.0.3)
+  - iOSSnapshotTestCase/SwiftSupport (6.0.3):
+    - iOSSnapshotTestCase/Core
+  - Nimble (8.0.1)
+  - Nimble-Snapshots (7.0.0):
+    - Nimble-Snapshots/Core (= 7.0.0)
+  - Nimble-Snapshots/Core (7.0.0):
+    - iOSSnapshotTestCase (~> 6.0)
+    - Nimble (~> 8.0)
+  - Quick (2.0.0)
+  - RDMWaveformView (0.1.0)
+
+DEPENDENCIES:
+  - FBSnapshotTestCase
+  - Nimble (~> 8.0.1)
+  - Nimble-Snapshots
+  - Quick (~> 2.0.0)
+  - RDMWaveformView (from `../`)
+
+SPEC REPOS:
+  https://github.com/cocoapods/specs.git:
+    - FBSnapshotTestCase
+    - iOSSnapshotTestCase
+    - Nimble
+    - Nimble-Snapshots
+    - Quick
+
+EXTERNAL SOURCES:
+  RDMWaveformView:
+    :path: "../"
+
+SPEC CHECKSUMS:
+  FBSnapshotTestCase: 094f9f314decbabe373b87cc339bea235a63e07a
+  iOSSnapshotTestCase: 944a73f6d9676302811a86c0cf35f0e6ef5ab2a0
+  Nimble: 45f786ae66faa9a709624227fae502db55a8bdd0
+  Nimble-Snapshots: 2d6d712ceb2d1850d88f850fbd7c732618106022
+  Quick: ce1276c7c27ba2da3cb2fd0cde053c3648b3b22d
+  RDMWaveformView: 8ed4e4b1e943b49af90b087e36e9dda3dbf3987d
+
+PODFILE CHECKSUM: 73acac3ab73eecfe668b44d0cc8825237f5990c9
+
+COCOAPODS: 1.6.1
