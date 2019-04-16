@@ -1,6 +1,6 @@
 # RDMWaveformView
 
-[![CI Status](https://img.shields.io/travis/HANAI tohru/RDMWaveformView.svg?style=flat)](https://travis-ci.org/HANAI tohru/RDMWaveformView)
+[![CI Status](https://img.shields.io/travis/reedom/RDMWaveformView.svg?style=flat)](https://travis-ci.org/reedom/RDMWaveformView)
 [![Version](https://img.shields.io/cocoapods/v/RDMWaveformView.svg?style=flat)](https://cocoapods.org/pods/RDMWaveformView)
 [![License](https://img.shields.io/cocoapods/l/RDMWaveformView.svg?style=flat)](https://cocoapods.org/pods/RDMWaveformView)
 [![Platform](https://img.shields.io/cocoapods/p/RDMWaveformView.svg?style=flat)](https://cocoapods.org/pods/RDMWaveformView)

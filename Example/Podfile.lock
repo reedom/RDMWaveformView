@@ -43,7 +43,7 @@ SPEC CHECKSUMS:
   Nimble: 45f786ae66faa9a709624227fae502db55a8bdd0
   Nimble-Snapshots: 2d6d712ceb2d1850d88f850fbd7c732618106022
   Quick: ce1276c7c27ba2da3cb2fd0cde053c3648b3b22d
-  RDMWaveformView: 8ed4e4b1e943b49af90b087e36e9dda3dbf3987d
+  RDMWaveformView: a06eb7ddd2858ce97d246d9cdc46125b512d8e89
 
 PODFILE CHECKSUM: 73acac3ab73eecfe668b44d0cc8825237f5990c9
 
