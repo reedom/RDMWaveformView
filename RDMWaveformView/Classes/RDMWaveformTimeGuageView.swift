@@ -8,19 +8,78 @@
 
 import Foundation
 import UIKit
+import AVFoundation
+import SparseRanges
 
 public class RDMWaveformTimeGuageView: UIView {
-  var widthPerSecond: CGFloat = 100
-  var linesPerSecond: Int = 4
-  var lineColor = UIColor(red: 88/255, green: 88/255, blue: 88/255, alpha: 1)
+  public var marginLeft: CGFloat = 0
+  public var labelPaddingLeft: CGFloat = -2
+  public var areaHeight: CGFloat = 22
+  public var lineHeight: CGFloat = 10
+  public var widthPerSecond: CGFloat = 100
+  public var linesPerSecond: Int = 4
+  public var font: UIFont = UIFont(name: "Menlo", size: 12)!
+  public var lineColor: UIColor = UIColor(red: 88/255, green: 88/255, blue: 88/255, alpha: 1)
+  public var fontColor: UIColor = UIColor(red: 88/255, green: 88/255, blue: 88/255, alpha: 1)
 
-  var font = UIFont(name: "Menlo", size: 10)
-  let fontColor = UIColor(red: 88/255, green: 88/255, blue: 88/255, alpha: 1)
+  private var renderedTimeRange = SparseCountableRange<Int>()
+  private var timeRanges = [CountableRange<Int>]()
+
+  open func reset() {
+    // TODO
+  }
+
+  public func refresh() {
+    renderedTimeRange.removeAll()
+  }
+
+  public func add(viewRange: CountableRange<Int>) {
+    if let gaps = renderedTimeRange.gaps(timeRangeFrom(viewRange: viewRange)) {
+      gaps.forEach { (timeRange) in
+        print("gap: \(timeRange)")
+        renderedTimeRange.add(timeRange)
+        if 0 < timeRange.upperBound {
+          timeRanges.append(timeRange)
+          let rect = rectFrom(timeRange: timeRange)
+          setNeedsDisplay(rect.insetBy(dx: -2, dy: 0))
+          print("setNeedsDisplay(\(rect.insetBy(dx: -2, dy: 0))")
+        }
+      }
+    }
+  }
+
+  private func timeRangeFrom(viewRange: CountableRange<Int>) -> CountableRange<Int> {
+    let sec1 = Int(floor(CGFloat(viewRange.lowerBound) / widthPerSecond))
+    let sec2 = Int(floor(CGFloat(viewRange.upperBound) / widthPerSecond))
+    return max(0, sec1)..<max(0, sec2)
+  }
+
+  private func rectFrom(timeRange: CountableRange<Int>) -> CGRect {
+    let x = CGFloat(timeRange.lowerBound) * widthPerSecond + marginLeft
+    let width = CGFloat(timeRange.count) * widthPerSecond
+    return CGRect(x: x, y: 0, width: width, height: frame.height)
+  }
 
   override public func draw(_ rect: CGRect) {
-    let startRendering = Date()
-    guard 0 < widthPerSecond, 0 < linesPerSecond, let font = font else { return }
+    guard
+      0 < areaHeight,
+      0 < lineHeight,
+      0 < widthPerSecond,
+      0 < linesPerSecond else { return }
 
+    guard let context = UIGraphicsGetCurrentContext() else {
+      print("RDMWaveformView failed to get graphics context")
+      return
+    }
+    timeRanges.forEach { (timeRange) in
+      drawGuage(context: context, timeRange: timeRange)
+    }
+    timeRanges.removeAll()
+  }
+
+  private func drawGuage(context: CGContext, timeRange: CountableRange<Int>) {
+    let rect = rectFrom(timeRange: timeRange)
+    print("drawGuage: \(rect)")
     let fontHeight = font.lineHeight
     let lineHeight = frame.height - fontHeight - 1
     let stride = widthPerSecond / CGFloat(linesPerSecond)
@@ -28,25 +87,29 @@ public class RDMWaveformTimeGuageView: UIView {
     let textAttr = [NSAttributedString.Key.foregroundColor: fontColor,
                     NSAttributedString.Key.font: font ]
 
-    var sec = 0
-    var x: CGFloat = 0
-    let end = rect.maxX
-    while (x < end) {
-      let rect = CGRect(x: x, y: 0, width: 1, height: lineHeight)
-      UIBezierPath(rect: rect).fill()
+    context.setShouldAntialias(false)
+    context.setAlpha(1.0)
+    context.setStrokeColor(lineColor.cgColor)
+
+    var sec = timeRange.lowerBound
+    var x = rect.minX - labelPaddingLeft
+    while (x < rect.maxX) {
+      context.setLineWidth(1)
+      context.move(to: CGPoint(x: x, y: 0))
+      context.addLine(to: CGPoint(x: x, y: lineHeight))
 
       let text = getTimeString(seconds: sec)
-      text.draw(at: CGPoint(x: x, y: frame.height - fontHeight), withAttributes: textAttr)
+      text.draw(at: CGPoint(x: x + labelPaddingLeft, y: frame.height - fontHeight), withAttributes: textAttr)
       sec += 1
 
       (0..<linesPerSecond).forEach { (i) in
         x += stride
-        let rect = CGRect(x: x, y: 0, width: 0.5, height: lineHeight - 4)
-        UIBezierPath(rect: rect).fill()
+        context.setLineWidth(0.5)
+        context.move(to: CGPoint(x: x, y: 0))
+        context.addLine(to: CGPoint(x: x, y: lineHeight - 2))
       }
     }
-    let endRendering = Date()
-     NSLog("Guage rendering done, took %0.3f seconds", endRendering.timeIntervalSince(startRendering))
+    context.strokePath()
   }
 
   private func getTimeString(seconds: Int) -> String {

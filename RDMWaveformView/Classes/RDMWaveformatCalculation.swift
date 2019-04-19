@@ -9,152 +9,137 @@
 import UIKit
 import AVFoundation
 
-struct RDMWaveformAttributes {
-  /// The color of the waveform
-  let wavesColor: UIColor
-
-  /// The "zero" level (in dB)
-  let noiseFloor: CGFloat
-}
-
-protocol RDMWaveformCalculator {
+public protocol RDMWaveformCalculator {
   /// Current audio context to be used for rendering
   var audioContext: RDMAudioContext { get }
 
-  var duration: Double { get }
-
+  /// Time at the beginning of the target waveform.
   var time: CMTime { get }
+  /// Duration of the target waveform in seconds.
+  var duration: Double { get }
+  /// Sampling data range of the target waveform.
+  var sampleRange: CountableRange<Int> { get }
 
+  /// Count of downscaled sampling data that waveform renderer will use.
   var targetSamples: Int { get }
-
-  var sampleRange: CountableRange<Int>  { get }
-
-  var viewSize: CGSize { get }
+  /// Rendering target rectangle in a view to draw the target waveform.
+  var targetRect: CGRect { get }
+  /// Width of a waveform decibel line in pixel.
   var lineWidth: Int { get }
+  /// Space between waveform decibel lines in pixel.
   var lineStride: Int { get }
 
+  /// Check whether the data contents is valid or not.
   var isValid: Bool { get }
+  /// Determine whether a waveform should exist before this.
   var hasPrevPage: Bool { get }
+  /// Determine whether a waveform should exist after this.
   var hasNextPage: Bool { get }
 }
 
 /// Format options for RDMWaveformRenderOperation
-class RDMWaveformEntireTrackCalculator: RDMWaveformCalculator {
+public class RDMWaveformEntireTrackCalculator: RDMWaveformCalculator {
   /// Current audio context to be used for rendering
-  let audioContext: RDMAudioContext
+  public let audioContext: RDMAudioContext
 
-  let viewSize: CGSize
-  let lineWidth: Int
-  let lineStride: Int
+  public let targetRect: CGRect
+  public let lineWidth: Int
+  public let lineStride: Int
 
-  let hasNextPage = false
-  let hasPrevPage = false
+  public let hasNextPage = false
+  public let hasPrevPage = false
 
-  init(audioContext: RDMAudioContext,
-       viewSize: CGSize,
-       lineWidth: Int,
-       lineStride: Int) {
+  public init(audioContext: RDMAudioContext,
+              targetRect: CGRect,
+              lineWidth: Int,
+              lineStride: Int) {
     self.audioContext = audioContext
-    self.viewSize = viewSize
+    self.targetRect = targetRect
     self.lineWidth = lineWidth
     self.lineStride = lineStride
   }
 
-  var duration: Double {
+  public var duration: Double {
     get { return audioContext.asset.duration.seconds }
   }
 
-  let time = CMTime.zero
+  public let time = CMTime.zero
 
-  var sampleRate: Int {
+  public var sampleRate: Int {
     get { return audioContext.sampleRate }
   }
 
-  var targetSamples:  Int {
-    return Int(ceil(viewSize.width / CGFloat(lineWidth + lineStride)))
+  public var targetSamples:  Int {
+    return Int(ceil(targetRect.width / CGFloat(lineWidth + lineStride)))
   }
 
-  var sampleRange: CountableRange<Int> {
+  public var sampleRange: CountableRange<Int> {
     return 0..<audioContext.totalSamples
   }
 
-  lazy var isValid: Bool = {
-    return !sampleRange.isEmpty && 0 < viewSize.width && 0 < viewSize.height
+  public lazy var isValid: Bool = {
+    return !sampleRange.isEmpty && 0 < targetRect.width && 0 < targetRect.height
   }()
 }
 
-class RDMWaveformPerSecondCalculator: RDMWaveformCalculator {
+public class RDMWaveformPerSecondCalculator: RDMWaveformCalculator {
   /// Current audio context to be used for rendering
-  let audioContext: RDMAudioContext
+  public let audioContext: RDMAudioContext
 
-  let samplePosition: Int
+  public let sampleRange: CountableRange<Int>
+  public let targetRect: CGRect
+  public let widthPerSecond: Int
+  public let linesPerSecond: Int
+  public let lineWidth: Int
 
-  let frameSize: CGSize
-
-  let widthPerSecond: Int
-  let linesPerSecond: Int
-  let lineWidth: Int
-
-  private let basicDuration: Double
-
-  init(audioContext: RDMAudioContext,
-       samplePosition: Int,
-       frameSize: CGSize,
-       widthPerSecond: Int,
-       linesPerSecond: Int,
-       lineWidth: Int) {
+  public init(audioContext: RDMAudioContext,
+              sampleRange: CountableRange<Int>,
+              targetRect: CGRect,
+              widthPerSecond: Int,
+              linesPerSecond: Int,
+              lineWidth: Int) {
     self.audioContext = audioContext
-    self.samplePosition = samplePosition
-    self.frameSize = frameSize
-    self.hasPrevPage = 0 < samplePosition
+    self.sampleRange = sampleRange
+    self.targetRect = targetRect
     self.widthPerSecond = widthPerSecond
     self.linesPerSecond = linesPerSecond
     self.lineWidth = lineWidth
-
-    self.basicDuration = Double(ceil(frameSize.width * 2 / CGFloat(widthPerSecond)))
+    print("sampleRange: \(sampleRange)")
   }
 
-  lazy var duration: Double = {
-    if hasNextPage {
-      return basicDuration
-    } else {
-      let remainSamples = audioContext.totalSamples - samplePosition
-      let duration = CMTime(value: Int64(remainSamples), timescale: audioContext.asset.duration.timescale)
-      return duration.seconds
-    }
+  public lazy var duration: Double = {
+    let duration = CMTime(value: Int64(sampleRange.count), timescale: audioContext.asset.duration.timescale)
+    return duration.seconds
   }()
 
-  var time: CMTime {
-    get { return CMTime(value: Int64(samplePosition), timescale: audioContext.asset.duration.timescale) }
+  public var time: CMTime {
+    get { return CMTime(value: Int64(sampleRange.lowerBound), timescale: audioContext.asset.duration.timescale) }
   }
 
-  lazy var viewSize: CGSize = {
+  public lazy var viewSize: CGSize = {
     let width = ceil(CGFloat(widthPerSecond) * CGFloat(duration))
-    return CGSize(width: width, height: frameSize.height)
+    return CGSize(width: width, height: targetRect.height)
   }()
 
-  lazy var lineStride: Int = {
+  public lazy var lineStride: Int = {
     return widthPerSecond / linesPerSecond - lineWidth
   }()
 
-  lazy var targetSamples: Int = {
+  public lazy var targetSamples: Int = {
     let t = Double(linesPerSecond) * duration
     print("duration: \(duration), linesPerSecond: \(linesPerSecond), targetSamples: \(t)")
     return Int(t)
   }()
 
-  lazy var sampleRange: CountableRange<Int> = {
-    let end = samplePosition + Int(Double(audioContext.sampleRate) * basicDuration)
-    return samplePosition ..< min(end, audioContext.totalSamples)
+  public lazy var hasPrevPage: Bool = {
+    return 0 < sampleRange.lowerBound
   }()
 
-  let hasPrevPage: Bool
-
-  lazy var hasNextPage: Bool = {
+  public lazy var hasNextPage: Bool = {
     return sampleRange.upperBound < audioContext.totalSamples
   }()
 
-  var isValid: Bool {
-    get { return !sampleRange.isEmpty && 0 < frameSize.width && 0 < frameSize.height }
+  public var isValid: Bool {
+    get { return !sampleRange.isEmpty && 0 < targetRect.width && 0 < targetRect.height }
   }
 }
