@@ -104,19 +104,29 @@ open class RDMWaveformView: UIView {
     return audioContext?.asset.duration ?? CMTime.zero
   }
 
-  private var _time = CMTime.zero
-
   /// The current time that the waveform points at.
-  public var time: CMTime {
-    get { return _time }
-    set { _time = newValue }
+  public var time: TimeInterval {
+    get {
+      guard let audioContext = audioContext else { return 0 }
+      return TimeInterval(_position) / TimeInterval(audioContext.sampleRate)
+    }
+    set {
+      guard let audioContext = audioContext else { return }
+      position = Int(newValue * TimeInterval(audioContext.sampleRate))
+    }
   }
 
   /// The current position in the sampling data that the waveform points at.
   private var _position: Int = 0
   public var position: Int {
     get { return _position }
-    set { _position = newValue }
+    set {
+      _position = max(0, min(totalSamples, newValue))
+      guard 0 < totalSamples else { return }
+      // Update view position
+      let x = contentView.frame.width * CGFloat(time / duration.seconds)
+      scrollView.contentOffset = CGPoint(x: x, y: 0)
+    }
   }
 
   /// The samples to be highlighted in a different color
