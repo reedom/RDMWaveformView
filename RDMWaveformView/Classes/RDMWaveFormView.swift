@@ -32,6 +32,11 @@ open class RDMWaveformView: UIView {
   /// A delegate to accept progress reporting
   open weak var delegate: RDMWaveformViewDelegate?
 
+  private var _isScrubbing = false
+  public var isScrubbing: Bool {
+    return _isScrubbing
+  }
+
   /// Whether loading is happening asynchronously
   open var loadingInProgress = false
 
@@ -107,25 +112,28 @@ open class RDMWaveformView: UIView {
   /// The current time that the waveform points at.
   public var time: TimeInterval {
     get {
-      guard let audioContext = audioContext else { return 0 }
-      return TimeInterval(_position) / TimeInterval(audioContext.sampleRate)
+      guard 0 < totalSamples, 0 < contentView.frame.width else { return 0 }
+      let progress = scrollView.contentOffset.x / contentView.frame.width
+      return duration.seconds * Double(progress)
     }
     set {
-      guard let audioContext = audioContext else { return }
-      position = Int(newValue * TimeInterval(audioContext.sampleRate))
+      guard 0 < totalSamples else { return }
+      let seconds = max(0, min(duration.seconds, newValue))
+      let progress = seconds / duration.seconds
+      let x = contentView.frame.width * CGFloat(progress)
+      scrollView.contentOffset = CGPoint(x: x, y: 0)
     }
   }
 
   /// The current position in the sampling data that the waveform points at.
-  private var _position: Int = 0
   public var position: Int {
-    get { return _position }
+    get {
+      guard let audioContext = audioContext else { return 0 }
+      return Int(time * TimeInterval(audioContext.sampleRate))
+    }
     set {
-      _position = max(0, min(totalSamples, newValue))
-      guard 0 < totalSamples else { return }
-      // Update view position
-      let x = contentView.frame.width * CGFloat(time / duration.seconds)
-      scrollView.contentOffset = CGPoint(x: x, y: 0)
+      let progress = Double(newValue) / Double(totalSamples)
+      time = duration.seconds * progress
     }
   }
 
@@ -296,6 +304,23 @@ extension RDMWaveformView {
 
 // MARK: - UIScrollViewDelegate
 extension RDMWaveformView: UIScrollViewDelegate {
+  public func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+    if !_isScrubbing {
+      _isScrubbing = true
+      delegate?.waveformWillStartScrubbing?(self)
+    }
+  }
+
+  public func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self else { return }
+      if !scrollView.isDecelerating {
+        self._isScrubbing = false
+        self.delegate?.waveformDidEndScrubbing?(self)
+      }
+    }
+  }
+
   // any offset changes
   public func scrollViewDidScroll(_ scrollView: UIScrollView) {
     let contentOffset = max(0, min(scrollView.contentSize.width, scrollView.contentOffset.x))
@@ -306,6 +331,12 @@ extension RDMWaveformView: UIScrollViewDelegate {
     contentView.update(visibleWidth: scrollView.frame.width,
                        contentOffset: contentOffset,
                        direction: scrollDirection)
+    delegate?.waveformDidScroll?(self)
+  }
+
+  public func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+    _isScrubbing = false
+    delegate?.waveformDidEndScrubbing?(self)
   }
 }
 
@@ -317,24 +348,12 @@ extension RDMWaveformView: UIScrollViewDelegate {
   /// An audio file was loaded
   @objc optional func waveformViewDidLoad(_ waveformView: RDMWaveformView)
 
-  /// Rendering will begin
-  @objc optional func waveformViewWillDownsample(_ waveformView: RDMWaveformView)
-
-  /// Rendering did complete
-  @objc optional func waveformViewDidDownsample(_ waveformView: RDMWaveformView)
-
-  /// Rendering will begin
-  @objc optional func waveformViewWillRender(_ waveformView: RDMWaveformView?)
-
-  /// Rendering did complete
-  @objc optional func waveformViewDidRender(_ waveformView: RDMWaveformView?)
-
   /// The scrubbing gesture will start
   @objc optional func waveformWillStartScrubbing(_ waveformView: RDMWaveformView)
 
-  /// The scrubbing gesture scrubbing
-  @objc optional func waveformScrubbing(_ waveformView: RDMWaveformView)
-
   /// The scrubbing gesture did end
   @objc optional func waveformDidEndScrubbing(_ waveformView: RDMWaveformView)
+
+  /// Scroll position was changed
+  @objc optional func waveformDidScroll(_ waveformView: RDMWaveformView)
 }

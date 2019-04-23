@@ -21,6 +21,7 @@ class ViewController: UIViewController {
   var stopButton: UIButton!
   var timeLabel: UILabel!
   var timer: Timer?
+  var needsToResumeAudio = false
 
   override func viewDidLoad() {
     super.viewDidLoad()
@@ -136,6 +137,7 @@ extension ViewController: RDMWaveformViewDelegate {
 
   /// An audio file will be loaded
   public func waveformViewWillLoad(_ waveformView: RDMWaveformView) {
+    NSLog("waveformViewWillLoad")
     loadingStartTime = Date()
   }
 
@@ -143,10 +145,12 @@ extension ViewController: RDMWaveformViewDelegate {
   public func waveformViewDidLoad(_ waveformView: RDMWaveformView) {
     let end = Date()
     NSLog("Loading done, took %0.3f seconds", end.timeIntervalSince(loadingStartTime))
+    NSLog("waveformViewDidLoad")
   }
 
   /// Rendering will begin
   public func waveformViewWillDownsample(_ waveformView: RDMWaveformView) {
+    NSLog("waveformViewWillDownsample")
     downsampleStartTime = Date()
   }
 
@@ -154,17 +158,30 @@ extension ViewController: RDMWaveformViewDelegate {
   public func waveformViewDidDownsample(_ waveformView: RDMWaveformView) {
     let end = Date()
     NSLog("Downsample done, took %0.3f seconds", end.timeIntervalSince(downsampleStartTime))
+    NSLog("waveformViewDidDownsample")
   }
 
-  /// Rendering will begin
-  public func waveformViewWillRender(_ waveformView: RDMWaveformView?) {
-    renderingStartTime = Date()
+  public func waveformWillStartScrubbing(_ waveformView: RDMWaveformView) {
+    NSLog("waveformWillStartScrubbing")
+    if player.isPlaying {
+      needsToResumeAudio = true
+      player.stop()
+    }
   }
 
-  /// Rendering did complete
-  public func waveformViewDidRender(_ waveformView: RDMWaveformView?) {
-    let end = Date()
-    NSLog("Rendering done, took %0.3f seconds", end.timeIntervalSince(renderingStartTime))
+  public func waveformDidEndScrubbing(_ waveformView: RDMWaveformView) {
+    NSLog("waveformDidEndScrubbing")
+    if needsToResumeAudio {
+      needsToResumeAudio = false
+      handlePlay()
+    }
+  }
+
+  public func waveformDidScroll(_ waveformView: RDMWaveformView) {
+    if !player.isPlaying {
+      player.currentTime = waveformView.time
+      timeLabel.text = getTimeString(player.currentTime)
+    }
   }
 }
 
@@ -196,7 +213,11 @@ extension ViewController: AVAudioPlayerDelegate {
 
 extension ViewController {
   @objc func handlePlay() {
-    player.play()
+    if waveformView.isScrubbing {
+      needsToResumeAudio = true
+    } else {
+      player.play()
+    }
     playButton.isHidden = true
     stopButton.isHidden = false
     timer = Timer.scheduledTimer(timeInterval: 0.01,
@@ -208,7 +229,8 @@ extension ViewController {
 
   @objc func handleStop() {
     timer?.invalidate()
-    player.pause()
+    needsToResumeAudio = false
+    player.stop()
     stopButton.isHidden = true
     playButton.isHidden = false
   }
