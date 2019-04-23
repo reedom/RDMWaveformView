@@ -48,7 +48,6 @@ extension RDMAudioContext {
 
         let totalSamples = Int((asbd.pointee.mSampleRate) * Float64(asset.duration.value) / Float64(asset.duration.timescale))
         print("totalSamples: \(totalSamples)")
-        print("channels: \(asbd.pointee.mChannelsPerFrame)")
         let audioContext = RDMAudioContext(audioURL: audioURL,
                                            sampleRate: Int(asbd.pointee.mSampleRate),
                                            totalSamples: totalSamples,
@@ -58,7 +57,7 @@ extension RDMAudioContext {
         completionHandler(audioContext)
         return
 
-      case .failed, .cancelled, .loading, .unknown:
+      default:
         print("FDWaveformView could not load asset: \(error?.localizedDescription ?? "Unknown error")")
       }
 

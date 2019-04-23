@@ -69,7 +69,7 @@ public class RDMWaveformEntireTrackCalculator: RDMWaveformCalculator {
     get { return audioContext.sampleRate }
   }
 
-  public var targetSamples:  Int {
+  public var targetSamples: Int {
     return Int(ceil(targetRect.width / CGFloat(lineWidth + lineStride)))
   }
 

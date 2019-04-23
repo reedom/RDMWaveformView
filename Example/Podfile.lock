@@ -44,7 +44,7 @@ EXTERNAL SOURCES:
 
 CHECKOUT OPTIONS:
   SparseRanges:
-    :commit: 3f2200b3ea19ecf48b7405c997a8abdd52634ee8
+    :commit: 0b868565d0c46daae550c09b4f9d8137acc96dee
     :git: "git@reedom.github.com:reedom/SparseRanges.git"
 
 SPEC CHECKSUMS:

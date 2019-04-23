@@ -12,17 +12,29 @@ import AVFoundation
 import SparseRanges
 
 public class RDMWaveformTimeGuageView: UIView {
+  public var visibleWidth: CGFloat = 0
   public var marginLeft: CGFloat = 0
   public var labelPaddingLeft: CGFloat = -2
-  public var areaHeight: CGFloat = 22
-  public var lineHeight: CGFloat = 10
+  public var labelPaddingBottom: CGFloat = 1
   public var widthPerSecond: CGFloat = 100
   public var linesPerSecond: Int = 4
+  public var majorLinePaddingBottom: CGFloat = 1
+  public var minorLinePaddingBottom: CGFloat = 3
+  public var majorLineWidth: CGFloat = 1
+  public var minorLineWidth: CGFloat = 0.5
   public var font: UIFont = UIFont(name: "Menlo", size: 12)!
   public var lineColor: UIColor = UIColor(red: 88/255, green: 88/255, blue: 88/255, alpha: 1)
   public var fontColor: UIColor = UIColor(red: 88/255, green: 88/255, blue: 88/255, alpha: 1)
 
-  private var renderedTimeRange = SparseCountableRange<Int>()
+  public var contentOffset: CGFloat = 0 {
+    didSet {
+      if let rect = calcRectNeedToDraw() {
+        setNeedsDisplay(rect)
+      }
+    }
+  }
+
+  private var renderedTimeRanges = SparseCountableRange<Int>()
   private var timeRanges = [CountableRange<Int>]()
 
   open func reset() {
@@ -30,28 +42,33 @@ public class RDMWaveformTimeGuageView: UIView {
   }
 
   public func refresh() {
-    renderedTimeRange.removeAll()
+    renderedTimeRanges.removeAll()
+    timeRanges.removeAll()
   }
 
-  public func add(viewRange: CountableRange<Int>) {
-    if let gaps = renderedTimeRange.gaps(timeRangeFrom(viewRange: viewRange)) {
-      gaps.forEach { (timeRange) in
-        print("gap: \(timeRange)")
-        renderedTimeRange.add(timeRange)
-        if 0 < timeRange.upperBound {
-          timeRanges.append(timeRange)
-          let rect = rectFrom(timeRange: timeRange)
-          setNeedsDisplay(rect.insetBy(dx: -2, dy: 0))
-          print("setNeedsDisplay(\(rect.insetBy(dx: -2, dy: 0))")
-        }
-      }
+  private func calcRectNeedToDraw() -> CGRect? {
+    guard
+      0 < visibleWidth,
+      0 < widthPerSecond,
+      0 < linesPerSecond else { return nil }
+
+    // `RDMWaveformTimeGuageView` should draw the current visible range plus ±1sec.
+
+    // First, we calculate time range of visible part of the view.
+    let beg = (contentOffset - marginLeft) / widthPerSecond
+    let end = (contentOffset - marginLeft + visibleWidth) / widthPerSecond
+
+    // Second, create range of beg-1 ..< end+1
+    let range = max(0, Int(beg) - 1) ..< max(0, Int(ceil(end)) + 1)
+
+    if let gaps = renderedTimeRanges.gaps(range) {
+      let gap = gaps.first!
+      renderedTimeRanges.add(gap)
+      timeRanges.append(gap)
+      return rectFrom(timeRange: gap)
+    } else {
+      return nil
     }
-  }
-
-  private func timeRangeFrom(viewRange: CountableRange<Int>) -> CountableRange<Int> {
-    let sec1 = Int(floor(CGFloat(viewRange.lowerBound) / widthPerSecond))
-    let sec2 = Int(floor(CGFloat(viewRange.upperBound) / widthPerSecond))
-    return max(0, sec1)..<max(0, sec2)
   }
 
   private func rectFrom(timeRange: CountableRange<Int>) -> CGRect {
@@ -62,8 +79,7 @@ public class RDMWaveformTimeGuageView: UIView {
 
   override public func draw(_ rect: CGRect) {
     guard
-      0 < areaHeight,
-      0 < lineHeight,
+      0 < visibleWidth,
       0 < widthPerSecond,
       0 < linesPerSecond else { return }
 
@@ -79,11 +95,11 @@ public class RDMWaveformTimeGuageView: UIView {
 
   private func drawGuage(context: CGContext, timeRange: CountableRange<Int>) {
     let rect = rectFrom(timeRange: timeRange)
-    print("drawGuage: \(rect)")
-    let fontHeight = font.lineHeight
-    let lineHeight = frame.height - fontHeight - 1
+    let fontHeight = font.lineHeight + labelPaddingBottom
+    let majorLineHeight = frame.height - fontHeight - majorLinePaddingBottom
+    let minorLineHeight = frame.height - fontHeight - minorLinePaddingBottom
     let stride = widthPerSecond / CGFloat(linesPerSecond)
-
+    let textY = frame.height - fontHeight
     let textAttr = [NSAttributedString.Key.foregroundColor: fontColor,
                     NSAttributedString.Key.font: font ]
 
@@ -93,20 +109,20 @@ public class RDMWaveformTimeGuageView: UIView {
 
     var sec = timeRange.lowerBound
     var x = rect.minX - labelPaddingLeft
-    while (x < rect.maxX) {
-      context.setLineWidth(1)
+    while (sec < timeRange.upperBound) {
+      context.setLineWidth(majorLineWidth)
       context.move(to: CGPoint(x: x, y: 0))
-      context.addLine(to: CGPoint(x: x, y: lineHeight))
+      context.addLine(to: CGPoint(x: x, y: majorLineHeight))
 
       let text = getTimeString(seconds: sec)
-      text.draw(at: CGPoint(x: x + labelPaddingLeft, y: frame.height - fontHeight), withAttributes: textAttr)
+      text.draw(at: CGPoint(x: x + labelPaddingLeft, y: textY), withAttributes: textAttr)
       sec += 1
 
       (0..<linesPerSecond).forEach { (i) in
         x += stride
-        context.setLineWidth(0.5)
+        context.setLineWidth(minorLineWidth)
         context.move(to: CGPoint(x: x, y: 0))
-        context.addLine(to: CGPoint(x: x, y: lineHeight - 2))
+        context.addLine(to: CGPoint(x: x, y: minorLineHeight))
       }
     }
     context.strokePath()

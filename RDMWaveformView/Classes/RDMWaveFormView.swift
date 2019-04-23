@@ -7,42 +7,35 @@ import MediaPlayer
 import AVFoundation
 import SparseRanges
 
-public struct RDMMarker {
-  let position: CGFloat
-  let name: String
-}
-
 public enum RDMWaveformResolution {
-  case entireTrack(lineWidth: Int, stride: Int)
-  case second(widthPerSecond: Int, linesPerSecond: Int, lineWidth: Int)
-}
-
-public enum RDMWaveformPositionAlignment {
-  case none
-  case center
+  case byViewWidth(scale: CGFloat, lineWidth: CGFloat, stride: CGFloat)
+  case perSecond(width: Int, lineWidth: CGFloat, lines: Int)
 }
 
 /// A view for rendering audio waveforms
 // IBDesignable support in XCode is so broken it's sad
 open class RDMWaveformView: UIView {
+  // MARK: - Types
+  public enum WaveformAlignment {
+    case none
+    case center
+  }
 
-  private enum ScrollDirection {
+  public enum ScrollDirection {
     case none
     case forward
     case backward
   }
 
+  // MARK: - Properties
+
   /// A delegate to accept progress reporting
-  open weak var delegate: RDMWaveformViewDelegate? {
-    didSet {
-      contentView.delegate = delegate
-    }
-  }
+  open weak var delegate: RDMWaveformViewDelegate?
 
   /// Whether loading is happening asynchronously
   open var loadingInProgress = false
 
-  /// The audio file to render
+  /// The audio URL to render
   open var audioURL: URL? {
     didSet {
       guard let audioURL = audioURL else {
@@ -51,21 +44,23 @@ open class RDMWaveformView: UIView {
         return
       }
 
+      // Start downloading
       loadingInProgress = true
       delegate?.waveformViewWillLoad?(self)
 
+      NSLog("loading audio track from \(audioURL)")
       RDMAudioContext.load(fromAudioURL: audioURL) { audioContext in
         DispatchQueue.main.async {
           guard self.audioURL == audioContext?.audioURL else { return }
 
           if audioContext == nil {
-            print("RDMWaveformView failed to load URL: \(audioURL)")
+            NSLog("RDMWaveformView failed to load URL: \(audioURL)")
           } else {
-            print("duration: \(audioContext!.asset.duration.seconds)secs")
+            NSLog("loaded audio track from \(audioURL)")
+            NSLog("audio track duration: \(audioContext!.asset.duration.seconds)secs")
           }
 
           self.audioContext = audioContext // This will reset the view and kick off a layout
-
           self.loadingInProgress = false
           self.delegate?.waveformViewDidLoad?(self)
         }
@@ -73,6 +68,7 @@ open class RDMWaveformView: UIView {
     }
   }
 
+  /// `scrollView` contains `contentView` and `guageView`.
   open lazy var scrollView: UIScrollView = {
     let scrollView = UIScrollView(frame: bounds)
     scrollView.backgroundColor = marginBackgroundColor
@@ -81,13 +77,16 @@ open class RDMWaveformView: UIView {
     return scrollView
   }()
 
+  /// `contentView` renders a waveform.
   public lazy var contentView: RDMWaveformContentView = {
     let contentView = RDMWaveformContentView()
+    contentView.resolution = waveformContentResolution
     contentView.backgroundColor = waveformBackgroundColor
     scrollView.addSubview(contentView)
     return contentView
   }()
 
+  /// `guageView` renders a time guage. Used optionally.
   public lazy var guageView: RDMWaveformTimeGuageView = {
     let guageView = RDMWaveformTimeGuageView()
     guageView.backgroundColor = marginBackgroundColor
@@ -95,22 +94,25 @@ open class RDMWaveformView: UIView {
     return guageView
   }()
 
-  /// The total number of audio samples in the file
+  /// The total number of audio samples in the current track.
   public var totalSamples: Int {
     return audioContext?.totalSamples ?? 0
   }
 
+  /// The total duration of the current track.
   public var duration: CMTime {
     return audioContext?.asset.duration ?? CMTime.zero
   }
 
   private var _time = CMTime.zero
 
+  /// The current time that the waveform points at.
   public var time: CMTime {
     get { return _time }
     set { _time = newValue }
   }
 
+  /// The current position in the sampling data that the waveform points at.
   private var _position: Int = 0
   public var position: Int {
     get { return _position }
@@ -120,18 +122,17 @@ open class RDMWaveformView: UIView {
   /// The samples to be highlighted in a different color
   open var markers = [RDMMarker]() {
     didSet {
-      guard 0 < totalSamples else { return }
+      guard audioContext != nil else { return }
       setNeedsLayout()
     }
   }
 
-  public var renderingUnitFactor: Float = 1.5
-
-  public var waveformBackgroundColor = UIColor(red: 18/255, green: 18/255, blue: 20/255, alpha: 1) {
+  public var waveformBackgroundColor = UIColor(red: 26/255, green: 25/255, blue: 31/255, alpha: 1) {
     didSet {
-      contentView.backgroundColor = waveformBackgroundColor
+      contentView.backgroundColor = marginBackgroundColor
     }
   }
+
 
   public var marginBackgroundColor = UIColor(red: 18/255, green: 18/255, blue: 20/255, alpha: 1) {
     didSet {
@@ -139,47 +140,56 @@ open class RDMWaveformView: UIView {
     }
   }
 
-  public var waveformContentResolution = RDMWaveformResolution.second(widthPerSecond: 100, linesPerSecond: 25, lineWidth: 1)
-  public var waveformContentAlignment = RDMWaveformPositionAlignment.center
+  public var waveformContentResolution = RDMWaveformResolution.perSecond(width: 100, lineWidth: 1, lines: 25) {
+    didSet {
+      contentView.resolution = waveformContentResolution
+      setNeedsLayout()
+    }
+  }
+
+  public var waveformContentAlignment = WaveformAlignment.center {
+    didSet {
+      setNeedsLayout()
+    }
+  }
+
+  // Mark - helper properties
 
   private var contentMargin: CGFloat {
-    return waveformContentAlignment == .center ? scrollView.frame.width / 2 : 0
+    switch waveformContentAlignment{
+    case .center:
+      return scrollView.frame.width / 2
+    case .none:
+      return 0
+    }
+  }
+
+  public var guageHeight: CGFloat = 22 {
+    didSet {
+      setNeedsLayout()
+    }
   }
 
   // Mark - Private vars
 
-  /// The "zero" level (in dB)
-  private var decibelMin: CGFloat = -50.0
-  private var decibelMax: CGFloat = -10.0
-
-  /// Operations in progress
-  private var operations = [RDMWaveformLoadOperation]()
-  private var renderSources = [RDMWaveformRenderSource]()
-
-  private var renderedViewRanges = SparseCountableRange<Int>()
-
-  public func reset() {
-    renderedViewRanges.removeAll()
-    contentView.reset()
-    guageView.reset()
-  }
-
-  private func refresh() {
-    renderedViewRanges.removeAll()
-    guageView.refresh()
-    invokeOperationIfNeeded(viewRange: normalizeViewRange(of: scrollView.contentOffset.x))
-  }
-
   /// Current audio context to be used for rendering
   private var audioContext: RDMAudioContext? {
     didSet {
+      contentView.audioContext = audioContext
       reset()
       setNeedsLayout()
     }
   }
 
+  override open func willMove(toWindow newWindow: UIWindow?) {
+    super.willMove(toWindow: newWindow)
+    if newWindow == nil {
+      contentView.cancel()
+    }
+  }
+
   deinit {
-    operations.forEach { $0.cancel() }
+    contentView.cancel()
   }
 
   override open func layoutSubviews() {
@@ -191,58 +201,56 @@ open class RDMWaveformView: UIView {
       return
     }
 
-    var contentWidth: CGFloat
-    let contentHeight = scrollView.frame.height
+    var waveformWidth: CGFloat
 
     switch waveformContentResolution {
-    case .entireTrack(_, _):
-      contentWidth = scrollView.frame.width
-    case .second(let widthPerSecond, _, _):
-      contentWidth = CGFloat(widthPerSecond) * CGFloat(audioContext.asset.duration.seconds)
+    case .byViewWidth(let scale, _, _):
+      waveformWidth = scrollView.frame.width * scale
+    case .perSecond(let widthPerSecond, _, _):
+      waveformWidth = CGFloat(widthPerSecond) * CGFloat(audioContext.asset.duration.seconds)
     }
 
-    scrollView.contentSize = CGSize(width: ceil(contentWidth + contentMargin * 2),
-                                    height: contentHeight)
+    scrollView.contentSize = CGSize(width: ceil(waveformWidth + contentMargin * 2),
+                                    height: scrollView.frame.height)
     if guageView.isHidden {
+      contentView.marginLeft = contentMargin
       contentView.frame = CGRect(x: ceil(contentMargin),
                                  y: 0,
-                                 width: contentWidth,
-                                 height: contentHeight)
+                                 width: waveformWidth,
+                                 height: scrollView.contentSize.height)
     } else {
+      contentView.marginLeft = contentMargin
       contentView.frame = CGRect(x: ceil(contentMargin),
                                  y: 0,
-                                 width: contentWidth,
-                                 height: contentHeight - guageView.areaHeight)
+                                 width: waveformWidth,
+                                 height: scrollView.contentSize.height - guageHeight)
       guageView.marginLeft = contentMargin
+      guageView.visibleWidth = scrollView.frame.width
       guageView.frame = CGRect(x: guageView.labelPaddingLeft,
                                y: contentView.frame.maxY,
                                width: scrollView.contentSize.width + scrollView.frame.width,
-                               height: guageView.areaHeight)
+                               height: guageHeight)
     }
 
-    updateWaveformUnitWidth()
-    invokeOperationIfNeeded(viewRange: normalizeViewRange(of: 0))
-    renderGuage(.none)
+    guageView.contentOffset = scrollView.contentOffset.x
+    contentView.update(visibleWidth: scrollView.frame.width,
+                       contentOffset: scrollView.contentOffset.x,
+                       direction: .none)
   }
 
-  private func updateWaveformUnitWidth() {
-    switch waveformContentResolution {
-    case .entireTrack(_, _):
-      waveformUnitWidth = Int(scrollView.frame.width)
-    case .second(let widthPerSecond, _, _):
-      let unitWidth = Int(Float(scrollView.frame.width) * renderingUnitFactor)
-      let remaining = unitWidth % widthPerSecond
-      if 0 < remaining {
-        waveformUnitWidth = unitWidth + widthPerSecond - remaining
-      } else {
-        waveformUnitWidth = unitWidth
-      }
-    }
+  // MARK: - Waveform content management
+
+  public func reset() {
+    contentView.reset()
+    guageView.reset()
+  }
+
+  private func refresh() {
+    guageView.refresh()
   }
 
   // MARK: - handle scrolling
 
-  private var waveformUnitWidth: Int = 0
   private var lastScrollContentOffset: CGFloat = 0
 
   private func scrollDirection(newContentOffset: CGFloat) -> ScrollDirection {
@@ -276,165 +284,18 @@ extension RDMWaveformView {
   }
 }
 
-// MARK: - guage
-
-extension RDMWaveformView {
-  private func renderGuage(_ scrollDirection: ScrollDirection) {
-    guard !guageView.isHidden else { return }
-
-    let x = Int(scrollView.contentOffset.x)
-    let width = Int(scrollView.frame.width)
-    switch scrollDirection {
-    case .forward:
-      guageView.add(viewRange: x..<x+width)
-    case .backward:
-      guageView.add(viewRange: x-width..<x)
-    case .none:
-      guageView.add(viewRange: x-width..<x+width)
-    }
-  }
-}
-
-// MARK: - waveform rendering calculation
-
-extension RDMWaveformView {
-  private typealias ViewRange = CountableRange<Int>
-
-  /// Calculate view range of the specific x position of the view, in pixel.
-  private func normalizeViewRange(of x: CGFloat) -> ViewRange {
-    switch waveformContentResolution {
-    case .entireTrack(_, _):
-      return 0 ..< Int(contentView.frame.width)
-    case .second(_, _, _):
-      let x1 = max(0, waveformUnitWidth * (Int(round(x)) / waveformUnitWidth))
-      return x1 ..< min(Int(contentView.frame.width), x1 + waveformUnitWidth)
-    }
-  }
-
-  private func prevViewRange(of viewRange: ViewRange) -> ViewRange {
-    switch waveformContentResolution {
-    case .entireTrack(_, _):
-      return viewRange
-    case .second(_, _, _):
-      let x = max(0, min(viewRange.lowerBound, Int(contentView.frame.width)) - waveformUnitWidth)
-      return x ..< min(Int(contentView.frame.width), x + waveformUnitWidth)
-    }
-  }
-
-  private func nextViewRange(of viewRange: ViewRange) -> ViewRange {
-    switch waveformContentResolution {
-    case .entireTrack(_, _):
-      return viewRange
-    case .second(_, _, _):
-      let x = min(Int(contentView.frame.width), max(0, viewRange.upperBound) + waveformUnitWidth)
-      return max(0, x - waveformUnitWidth) ..< x
-    }
-  }
-
-  private func sampleRangeFor(contentPosX: CGFloat) -> Int {
-    return max(0, min(totalSamples, totalSamples * Int(contentPosX / contentView.frame.width)))
-  }
-
-  private func sampleRangeFor(contentPosX: Int) -> Int {
-    return max(0, min(totalSamples, totalSamples * contentPosX / Int(contentView.frame.width)))
-  }
-
-  private func sampleRangeFor(viewRange: ViewRange) -> ViewRange {
-    let x1 = sampleRangeFor(contentPosX: viewRange.lowerBound)
-    let x2 = sampleRangeFor(contentPosX: viewRange.upperBound)
-    return x1..<x2
-  }
-}
-
 // MARK: - UIScrollViewDelegate
 extension RDMWaveformView: UIScrollViewDelegate {
   // any offset changes
   public func scrollViewDidScroll(_ scrollView: UIScrollView) {
-    renderIfNeeded()
-  }
-
-  private func renderIfNeeded() {
     let contentOffset = max(0, min(scrollView.contentSize.width, scrollView.contentOffset.x))
     let scrollDirection = self.scrollDirection(newContentOffset: contentOffset)
-    guard scrollDirection != .none else { return }
-    renderGuage(scrollDirection)
+    lastScrollContentOffset = contentOffset
 
-    defer {
-      lastScrollContentOffset = contentOffset
-    }
-
-    let viewRange = normalizeViewRange(of: contentOffset)
-    invokeOperationIfNeeded(viewRange: viewRange)
-
-    switch scrollDirection {
-    case .forward:
-      invokeOperationIfNeeded(viewRange: nextViewRange(of: viewRange))
-    case .backward:
-      invokeOperationIfNeeded(viewRange: prevViewRange(of: viewRange))
-    case .none:
-      return
-    }
-  }
-}
-
-// MARK: - Operation
-
-extension RDMWaveformView {
-
-  private func invokeOperationIfNeeded(viewRange: ViewRange) {
-    guard audioContext != nil else { return }
-
-    if let gaps = renderedViewRanges.gaps(viewRange) {
-      renderedViewRanges.add(viewRange)
-      gaps.forEach { invokeOperation(viewRange: $0) }
-    }
-  }
-
-  private func invokeOperation(viewRange: ViewRange) {
-    guard let audioContext = audioContext else { return }
-
-    delegate?.waveformViewWillDownsample?(self)
-
-    let targetRect: CGRect
-    let calculator: RDMWaveformCalculator
-    switch waveformContentResolution {
-    case .entireTrack(let lineWidth, let stride):
-      targetRect = contentView.frame
-      calculator = RDMWaveformEntireTrackCalculator(audioContext: audioContext,
-                                                    targetRect: targetRect,
-                                                    lineWidth: lineWidth,
-                                                    lineStride: stride)
-    case .second(let widthPerSecond, let linesPerSecond, let lineWidth):
-      let sampleRange = sampleRangeFor(viewRange: viewRange)
-      targetRect = CGRect(x: CGFloat(viewRange.lowerBound),
-                          y: 0,
-                          width: CGFloat(viewRange.count),
-                          height: contentView.frame.height)
-      calculator = RDMWaveformPerSecondCalculator(audioContext: audioContext,
-                                                  sampleRange: sampleRange,
-                                                  targetRect: targetRect,
-                                                  widthPerSecond: widthPerSecond,
-                                                  linesPerSecond: linesPerSecond,
-                                                  lineWidth: lineWidth)
-    }
-
-    let operation = RDMWaveformLoadOperation(calculator: calculator,
-                                             decibelMin: decibelMin,
-                                             decibelMax: decibelMax) { [weak self] renderSource in
-                                              DispatchQueue.main.async {
-                                                guard let self = self else { return }
-                                                self.delegate?.waveformViewDidDownsample?(self)
-                                                self.operations.removeAll(where: { $0.calculator.sampleRange == calculator.sampleRange })
-                                                if let renderSource = renderSource {
-                                                  self.contentView.add(renderSource: renderSource)
-                                                }
-                                                // self.delegate?.waveformViewDidRender?(self)
-                                              }
-    }
-
-    self.operations.append(operation)
-    // delegate?.waveformViewWillRender?(self)
-    operation.start()
+    guageView.contentOffset = scrollView.contentOffset.x
+    contentView.update(visibleWidth: scrollView.frame.width,
+                       contentOffset: contentOffset,
+                       direction: scrollDirection)
   }
 }
 
@@ -466,16 +327,4 @@ extension RDMWaveformView {
 
   /// The scrubbing gesture did end
   @objc optional func waveformDidEndScrubbing(_ waveformView: RDMWaveformView)
-}
-
-//MARK -
-
-extension CountableRange where Bound: Strideable {
-
-  // Extend each bound away from midpoint by `factor`, a portion of the distance from begin to end
-  func extended(byFactor factor: Double) -> CountableRange<Bound> {
-    let theCount: Int = numericCast(count)
-    let amountToMove: Bound.Stride = numericCast(Int(Double(theCount) * factor))
-    return lowerBound.advanced(by: -amountToMove) ..< upperBound.advanced(by: amountToMove)
-  }
 }
