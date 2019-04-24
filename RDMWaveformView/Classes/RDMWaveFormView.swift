@@ -77,6 +77,8 @@ open class RDMWaveformView: UIView {
   open lazy var scrollView: UIScrollView = {
     let scrollView = UIScrollView(frame: bounds)
     scrollView.backgroundColor = marginBackgroundColor
+    scrollView.showsVerticalScrollIndicator = false
+    scrollView.showsHorizontalScrollIndicator = false
     addSubview(scrollView)
     scrollView.delegate = self
     return scrollView
