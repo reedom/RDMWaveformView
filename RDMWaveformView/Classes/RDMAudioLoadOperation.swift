@@ -183,47 +183,46 @@ final public class RDMAudioLoadOperation: Operation {
                           downsampleCount: Int,
                           downsampleRate: Int,
                           filter: [Float]) -> [CGFloat] {
-//    sampleBuffer.withUnsafeBytes { (pointer) in
-//      let samples = pointer.load(as: UnsafePointer<Int16>.self)
     var result = [CGFloat]()
-    sampleBuffer.withUnsafeBytes { (samples: UnsafePointer<Int16>) in
-      var processingBuffer = [Float](repeating: 0.0, count: samplesCount)
-
-      // Convert 16bit int samples to floats
-      vDSP_vflt16(samples, 1, &processingBuffer, 1, vDSP_Length(samplesCount))
-
-      // Take the absolute values to get amplitude
-      vDSP_vabs(processingBuffer, 1, &processingBuffer, 1, vDSP_Length(samplesCount))
-
-      // Convert samples to a log scale
-      var zero: Float = 32768.0
-      vDSP_vdbcon(processingBuffer, 1, &zero, &processingBuffer, 1, vDSP_Length(processingBuffer.count), 1)
-
-      // Clip to [noiseFloor, 0]
-      var ceil: Float = 0.0
-      var noiseFloorFloat = Float(decibelMin)
-      vDSP_vclip(processingBuffer, 1, &noiseFloorFloat, &ceil, &processingBuffer, 1, vDSP_Length(processingBuffer.count))
-
-      // Downsample and average
-      var downsampledData = [Float](repeating: 0.0, count: downsampleCount)
-      vDSP_desamp(processingBuffer,
-                  vDSP_Stride(downsampleRate),
-                  filter,
-                  &downsampledData,
-                  vDSP_Length(downsampleCount),
-                  vDSP_Length(downsampleRate))
-
-      result = downsampledData.map { (value: Float) -> CGFloat in
-        let element = CGFloat(value)
-        if decibelMax < element {
-          decibelMax = element
-        }
-        return element
-      }
-
-      // Remove processed samples
-      sampleBuffer.removeFirst(downsampleRate * downsampleCount * MemoryLayout<Int16>.size)
+    let samples = sampleBuffer.withUnsafeBytes {
+      $0.baseAddress!.assumingMemoryBound(to: Int16.self)
     }
+    var processingBuffer = [Float](repeating: 0.0, count: samplesCount)
+
+    // Convert 16bit int samples to floats
+    vDSP_vflt16(samples, 1, &processingBuffer, 1, vDSP_Length(samplesCount))
+
+    // Take the absolute values to get amplitude
+    vDSP_vabs(processingBuffer, 1, &processingBuffer, 1, vDSP_Length(samplesCount))
+
+    // Convert samples to a log scale
+    var zero: Float = 32768.0
+    vDSP_vdbcon(processingBuffer, 1, &zero, &processingBuffer, 1, vDSP_Length(processingBuffer.count), 1)
+
+    // Clip to [noiseFloor, 0]
+    var ceil: Float = 0.0
+    var noiseFloorFloat = Float(decibelMin)
+    vDSP_vclip(processingBuffer, 1, &noiseFloorFloat, &ceil, &processingBuffer, 1, vDSP_Length(processingBuffer.count))
+
+    // Downsample and average
+    var downsampledData = [Float](repeating: 0.0, count: downsampleCount)
+    vDSP_desamp(processingBuffer,
+                vDSP_Stride(downsampleRate),
+                filter,
+                &downsampledData,
+                vDSP_Length(downsampleCount),
+                vDSP_Length(downsampleRate))
+
+    result = downsampledData.map { (value: Float) -> CGFloat in
+      let element = CGFloat(value)
+      if decibelMax < element {
+        decibelMax = element
+      }
+      return element
+    }
+
+    // Remove processed samples
+    sampleBuffer.removeFirst(downsampleRate * downsampleCount * MemoryLayout<Int16>.size)
 
     return result
   }
