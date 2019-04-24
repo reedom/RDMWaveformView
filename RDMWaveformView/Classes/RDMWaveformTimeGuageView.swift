@@ -24,7 +24,7 @@ public class RDMWaveformTimeGuageView: UIView {
   public var minorLineWidth: CGFloat = 0.5
   public var font: UIFont = UIFont(name: "Menlo", size: 12)!
   public var lineColor: UIColor = UIColor(red: 88/255, green: 88/255, blue: 88/255, alpha: 1)
-  public var fontColor: UIColor = UIColor(red: 88/255, green: 88/255, blue: 88/255, alpha: 1)
+  public var labelColor: UIColor = UIColor(red: 88/255, green: 88/255, blue: 88/255, alpha: 1)
 
   public var contentOffset: CGFloat = 0 {
     didSet {
@@ -100,7 +100,7 @@ public class RDMWaveformTimeGuageView: UIView {
     let minorLineHeight = frame.height - fontHeight - minorLinePaddingBottom
     let stride = widthPerSecond / CGFloat(linesPerSecond)
     let textY = frame.height - fontHeight
-    let textAttr = [NSAttributedString.Key.foregroundColor: fontColor,
+    let textAttr = [NSAttributedString.Key.foregroundColor: labelColor,
                     NSAttributedString.Key.font: font ]
 
     context.setShouldAntialias(false)
