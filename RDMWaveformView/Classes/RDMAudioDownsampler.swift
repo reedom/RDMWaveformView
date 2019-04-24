@@ -69,25 +69,32 @@ class RDMAudioDownsampler {
     }
   }
 
+  public func downsampleAll() {
+    if let gaps = handledRanges.gaps(0 ..< audioContext.totalSamples) {
+      gaps.forEach { (samplesRange) in
+        invokeOperation(samplesRange) { ( _, _ ) in }
+      }
+    }
+  }
+
   private func invokeOperation(_ samplesRange: CountableRange<Int>, callback: @escaping Callback) {
     let operation = RDMAudioLoadOperation(audioContext: audioContext,
                                           samplesRange: samplesRange,
                                           downsampleRate: downsampleRate,
                                           decibelMin: decibelMin,
                                           decibelMax: decibelMax)
-    { [weak self] (operation, downsampleIndex, downsamples) -> Void in
+    { [weak self] (operation, chunkRange, downsamples) -> Void in
       guard let self = self else { return }
       if let downsamples = downsamples {
-        self.store(downsampleIndex, downsamples)
+        self.handledRanges.add(chunkRange)
+        self.store(chunkRange.lowerBound / self.downsampleRate, downsamples)
       }
       DispatchQueue.main.async {
         if let i = self.operations.firstIndex(of: operation) {
           self.operations.remove(at: i)
         }
         if let downsamples = downsamples {
-          let beg = samplesRange.lowerBound + self.downsampleRate * downsampleIndex
-          let end = beg + self.downsampleRate * downsamples.count
-          callback(beg ..< end, downsamples[0..<downsamples.count])
+          callback(chunkRange, downsamples[0..<downsamples.count])
         }
       }
     }

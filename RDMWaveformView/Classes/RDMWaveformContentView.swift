@@ -27,7 +27,7 @@ open class RDMWaveformContentView: UIView {
     }
   }
 
-  private var downsampler: RDMAudioDownsampler?
+  var downsampler: RDMAudioDownsampler?
 
   // MARK: - Audio helper properties
 

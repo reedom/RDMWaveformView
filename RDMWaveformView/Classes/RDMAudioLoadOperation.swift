@@ -35,7 +35,7 @@ final public class RDMAudioLoadOperation: Operation {
 
   public typealias Callback = (
     _ operation: RDMAudioLoadOperation,
-    _ downsampleIndex: Int,
+    _ chunkRange: CountableRange<Int>,
     _ downsamples: [CGFloat]?) -> Void
 
   // MARK: - Private
@@ -158,8 +158,10 @@ final public class RDMAudioLoadOperation: Operation {
                                    downsampleCount: downsampleCount,
                                    downsampleRate: sampleCountInUnit,
                                    filter: filter)
-      self.callback(self, downsampleIndex, downsamples)
-      downsampleIndex += downsamples.count
+      let chunkFrom = samplesRange.lowerBound + (downsampleIndex * downsampleRate)
+      let chunkTo = samplesRange.lowerBound + ((downsampleIndex + downsampleCount)  * downsampleRate)
+      self.callback(self, chunkFrom ..< chunkTo, downsamples)
+      downsampleIndex += downsampleCount
     }
     guard !isCancelled else { return }
 

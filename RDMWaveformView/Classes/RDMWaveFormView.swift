@@ -276,6 +276,12 @@ open class RDMWaveformView: UIView {
 
   // MARK: - Waveform content management
 
+  // Downsample entire track in advance so that it won't show
+  // delay in further rendering process.
+  public func downsampleAll() {
+    contentView.downsampler?.downsampleAll()
+  }
+
   public func reset() {
     contentView.reset()
     guageView.reset()
