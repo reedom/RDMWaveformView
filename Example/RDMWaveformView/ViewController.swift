@@ -149,19 +149,7 @@ extension ViewController: RDMWaveformViewDelegate {
     let end = Date()
     NSLog("Loading done, took %0.3f seconds", end.timeIntervalSince(loadingStartTime))
     NSLog("waveformViewDidLoad")
-  }
-
-  /// Rendering will begin
-  public func waveformViewWillDownsample(_ waveformView: RDMWaveformView) {
-    NSLog("waveformViewWillDownsample")
-    downsampleStartTime = Date()
-  }
-
-  /// Rendering did complete
-  public func waveformViewDidDownsample(_ waveformView: RDMWaveformView) {
-    let end = Date()
-    NSLog("Downsample done, took %0.3f seconds", end.timeIntervalSince(downsampleStartTime))
-    NSLog("waveformViewDidDownsample")
+    waveformView.downsampleAll()
   }
 
   public func waveformWillStartScrubbing(_ waveformView: RDMWaveformView) {
