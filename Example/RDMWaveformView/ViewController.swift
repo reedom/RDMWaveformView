@@ -49,6 +49,7 @@ class ViewController: UIViewController {
       label.heightAnchor.constraint(equalToConstant: 20).isActive = true
       label.textAlignment = .center
       label.textColor = UIColor.white
+      label.font = UIFont(name: "Courier", size: 18)!
       return label
     }()
 
