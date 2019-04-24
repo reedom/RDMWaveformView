@@ -22,7 +22,7 @@ public class RDMWaveformTimeGuageView: UIView {
   public var minorLinePaddingBottom: CGFloat = 3
   public var majorLineWidth: CGFloat = 1
   public var minorLineWidth: CGFloat = 0.5
-  public var font: UIFont = UIFont(name: "Menlo", size: 12)!
+  public var font: UIFont = UIFont(name: "Courier", size: 14)!
   public var lineColor: UIColor = UIColor(red: 88/255, green: 88/255, blue: 88/255, alpha: 1)
   public var labelColor: UIColor = UIColor(red: 88/255, green: 88/255, blue: 88/255, alpha: 1)
 
