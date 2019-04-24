@@ -26,6 +26,8 @@ class ViewController: UIViewController {
   override func viewDidLoad() {
     super.viewDidLoad()
 
+    view.backgroundColor = UIColor.black
+
     waveformView = RDMWaveformView()
     waveformView.delegate = self
     view.addSubview(waveformView)
@@ -46,7 +48,7 @@ class ViewController: UIViewController {
       label.widthAnchor.constraint(equalToConstant: 100).isActive = true
       label.heightAnchor.constraint(equalToConstant: 20).isActive = true
       label.textAlignment = .center
-      label.textColor = UIColor.black
+      label.textColor = UIColor.white
       return label
     }()
 
@@ -60,7 +62,7 @@ class ViewController: UIViewController {
       button.heightAnchor.constraint(equalToConstant: 25).isActive = true
       button.setTitle("▷", for: .normal)
       button.contentHorizontalAlignment = .center
-      button.setTitleColor(UIColor.black, for: .normal)
+      button.setTitleColor(UIColor.white, for: .normal)
       button.addTarget(self, action: #selector(handlePlay), for: .touchUpInside)
       return button
     }()
@@ -75,7 +77,7 @@ class ViewController: UIViewController {
       button.heightAnchor.constraint(equalToConstant: 25).isActive = true
       button.setTitle("◼", for: .normal)
       button.contentHorizontalAlignment = .center
-      button.setTitleColor(UIColor.black, for: .normal)
+      button.setTitleColor(UIColor.white, for: .normal)
       button.addTarget(self, action: #selector(handleStop), for: .touchUpInside)
       button.isHidden = true
       return button
@@ -91,7 +93,7 @@ class ViewController: UIViewController {
       button.heightAnchor.constraint(equalToConstant: 25).isActive = true
       button.setTitle("⟸", for: .normal)
       button.contentHorizontalAlignment = .center
-      button.setTitleColor(UIColor.black, for: .normal)
+      button.setTitleColor(UIColor.white, for: .normal)
       button.addTarget(self, action: #selector(handleBack), for: .touchUpInside)
       return button
     }()
@@ -106,7 +108,7 @@ class ViewController: UIViewController {
       button.heightAnchor.constraint(equalToConstant: 25).isActive = true
       button.setTitle("⟹", for: .normal)
       button.contentHorizontalAlignment = .center
-      button.setTitleColor(UIColor.black, for: .normal)
+      button.setTitleColor(UIColor.white, for: .normal)
       button.addTarget(self, action: #selector(handleForward), for: .touchUpInside)
       return button
     }()
