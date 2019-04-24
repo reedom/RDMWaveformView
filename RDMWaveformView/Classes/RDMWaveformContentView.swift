@@ -110,7 +110,9 @@ extension RDMWaveformContentView {
         let hint = DrawHint(downsamples: downsamples,
                             rect: self.rectFrom(sampleRange: chunkRange))
         self.renderHints.append(hint)
-        self.setNeedsDisplay(hint.rect.insetBy(dx: -1, dy: 0))
+        // Put some offset on invalidate rect. Without this, the device will
+        // draw a half width line at the edge of the rect.
+        self.setNeedsDisplay(hint.rect.offsetBy(dx: -0.5, dy: 0))
       }
     }
   }
