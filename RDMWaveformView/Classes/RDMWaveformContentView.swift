@@ -65,13 +65,13 @@ open class RDMWaveformContentView: UIView {
   private var renderHints = [DrawHint]()
 
   /// Visible width on the screen. The width of the parent view should relate this.
-  private var visibleWidth: CGFloat = 0
+  public var visibleWidth: CGFloat = 0
+
   private var contentOffset: CGFloat = 0
 }
 
 extension RDMWaveformContentView {
-  public func update(visibleWidth: CGFloat, contentOffset: CGFloat, direction: ScrollDirection) {
-    self.visibleWidth = visibleWidth
+  public func update(contentOffset: CGFloat, direction: ScrollDirection) {
     self.contentOffset = contentOffset
     guard let resolution = resolution, 0 < visibleWidth else { return }
 
@@ -281,9 +281,18 @@ extension RDMWaveformContentView {
 
 extension RDMWaveformContentView {
   override open func draw(_ rect: CGRect) {
-    guard let context = UIGraphicsGetCurrentContext() else {
-      NSLog("RDMWaveformView failed to get graphics context")
-      return
+    guard
+      audioContext != nil,
+      0 < visibleWidth,
+      let context = UIGraphicsGetCurrentContext()
+      else { return }
+
+    if renderHints.isEmpty {
+      // This happens when
+      // a) initial rendering
+      // b) iOS had flushed the rendering buffer while the app was in background
+      renderedTimeRanges.removeAll()
+      update(contentOffset: contentOffset, direction: .none)
     }
 
     renderHints.forEach { (renderHint) in

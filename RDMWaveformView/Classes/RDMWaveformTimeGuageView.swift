@@ -81,12 +81,19 @@ public class RDMWaveformTimeGuageView: UIView {
     guard
       0 < visibleWidth,
       0 < widthPerSecond,
-      0 < linesPerSecond else { return }
-
-    guard let context = UIGraphicsGetCurrentContext() else {
-      print("RDMWaveformView failed to get graphics context")
+      0 < linesPerSecond,
+     let context = UIGraphicsGetCurrentContext() else {
       return
     }
+
+    if timeRanges.isEmpty {
+      // This happens when
+      // a) initial rendering
+      // b) iOS had flushed the rendering buffer while the app was in background
+      renderedTimeRanges.removeAll()
+      _ = calcRectNeedToDraw()
+    }
+
     timeRanges.forEach { (timeRange) in
       drawGuage(context: context, timeRange: timeRange)
     }

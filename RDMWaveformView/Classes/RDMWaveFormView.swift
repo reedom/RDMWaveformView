@@ -248,14 +248,14 @@ open class RDMWaveformView: UIView {
 
     scrollView.contentSize = CGSize(width: ceil(waveformWidth + contentMargin * 2),
                                     height: scrollView.frame.height)
+    contentView.marginLeft = contentMargin
+    contentView.visibleWidth = scrollView.frame.width
     if guageView.isHidden {
-      contentView.marginLeft = contentMargin
       contentView.frame = CGRect(x: ceil(contentMargin),
                                  y: 0,
                                  width: waveformWidth,
                                  height: scrollView.contentSize.height)
     } else {
-      contentView.marginLeft = contentMargin
       contentView.frame = CGRect(x: ceil(contentMargin),
                                  y: 0,
                                  width: waveformWidth,
@@ -269,8 +269,7 @@ open class RDMWaveformView: UIView {
     }
 
     guageView.contentOffset = scrollView.contentOffset.x
-    contentView.update(visibleWidth: scrollView.frame.width,
-                       contentOffset: scrollView.contentOffset.x,
+    contentView.update(contentOffset: scrollView.contentOffset.x,
                        direction: .none)
   }
 
@@ -287,10 +286,6 @@ open class RDMWaveformView: UIView {
     guageView.reset()
   }
 
-  private func refresh() {
-    guageView.refresh()
-  }
-
   // MARK: - handle scrolling
 
   private var lastScrollContentOffset: CGFloat = 0
@@ -303,26 +298,6 @@ open class RDMWaveformView: UIView {
     } else {
       return .none
     }
-  }
-}
-
-// MARK: - view lifecycle
-extension RDMWaveformView {
-  override open func didMoveToSuperview() {
-    NotificationCenter.default.addObserver(self,
-                                           selector: #selector(appWillEnterForeground(notification:)),
-                                           name: UIApplication.willEnterForegroundNotification,
-                                           object: nil)
-  }
-
-  override open func willMove(toSuperview newSuperview: UIView?) {
-    if newSuperview == nil {
-      NotificationCenter.default.removeObserver(self)
-    }
-  }
-
-  @objc private func appWillEnterForeground(notification: Notification) {
-    refresh()
   }
 }
 
@@ -352,8 +327,7 @@ extension RDMWaveformView: UIScrollViewDelegate {
     lastScrollContentOffset = contentOffset
 
     guageView.contentOffset = scrollView.contentOffset.x
-    contentView.update(visibleWidth: scrollView.frame.width,
-                       contentOffset: contentOffset,
+    contentView.update(contentOffset: contentOffset,
                        direction: scrollDirection)
     delegate?.waveformDidScroll?(self)
   }
