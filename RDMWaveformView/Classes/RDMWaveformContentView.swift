@@ -10,6 +10,11 @@ import MediaPlayer
 import AVFoundation
 import SparseRanges
 
+public enum RDMWaveformResolution {
+  case byViewWidth(stride: CGFloat, lineWidth: CGFloat)
+  case perSecond(width: Int, lines: Int, lineWidth: CGFloat)
+}
+
 /// A view for rendering audio waveforms
 open class RDMWaveformContentView: UIView {
   // MARK: - Fundamental properties
@@ -46,13 +51,23 @@ open class RDMWaveformContentView: UIView {
   public var renderingUnitFactor: Float = 1.5
   public var marginLeft: CGFloat = 0
 
+  public var contentWidth: CGFloat {
+    guard let resolution = resolution else { return 0 }
+    switch resolution {
+    case .byViewWidth(_, _):
+      return visibleWidth
+    case .perSecond(let widthPerSecond, _, _):
+      return CGFloat(widthPerSecond) * CGFloat(duration.seconds)
+    }
+  }
+
   /// The color of the waveform
   public var lineColor: UIColor = UIColor(red: 255/255, green: 255/255, blue: 255/255, alpha: 1)
 
   public var decibelMin: CGFloat = -50
   public var decibelMax: CGFloat = -10
 
-  public typealias ScrollDirection = RDMWaveformView.ScrollDirection
+  public typealias ScrollDirection = RDMScrollableWaveformView.ScrollDirection
   public typealias TimeRange = CountableRange<Int>
 
   private var renderedTimeRanges = SparseCountableRange<Int>()
@@ -71,7 +86,7 @@ open class RDMWaveformContentView: UIView {
 }
 
 extension RDMWaveformContentView {
-  public func update(contentOffset: CGFloat, direction: ScrollDirection) {
+  public func update(contentOffset: CGFloat = 0, direction: ScrollDirection = .none) {
     self.contentOffset = contentOffset
     guard let resolution = resolution, 0 < visibleWidth else { return }
 
@@ -80,8 +95,7 @@ extension RDMWaveformContentView {
 
     var timeRange: TimeRange
     switch resolution {
-    case .byViewWidth(_, _, _):
-      // TODO
+    case .byViewWidth(_, _):
       timeRange = 0 ..< Int(ceil(duration.seconds))
       break
     case .perSecond(_, _, _):
@@ -118,16 +132,16 @@ extension RDMWaveformContentView {
   }
 
   private func calcDownsampleRate() -> Int {
-    guard let resolution = resolution else { return 0 }
+    guard let resolution = resolution else { return 1 }
 
     switch resolution {
-    case .byViewWidth(let scale, _, let stride):
-      let totalWidth = frame.width * scale
-      let lines = totalWidth / stride
-      return Int(CGFloat(totalSamples) / lines)
-    case .perSecond(_, _, let linesPerSecond):
+    case .byViewWidth(let stride, _):
+      let lines = frame.width / CGFloat(stride)
+      guard 0 < lines else { return 1 }
+      return max(1, Int(CGFloat(totalSamples) / lines))
+    case .perSecond(_, let linesPerSecond, _):
       let totalLines = duration.seconds * Double(linesPerSecond)
-      return Int(ceil(Double(totalSamples) / totalLines))
+      return max(1, Int(ceil(Double(totalSamples) / totalLines)))
     }
   }
 
@@ -161,9 +175,8 @@ extension RDMWaveformContentView {
   private func sampleIndexFrom(x: CGFloat) -> Int {
     guard let resolution = resolution else { return 0 }
     switch resolution {
-    case .byViewWidth(let scale, _, _):
-      let totalWidth = frame.width * scale
-      let progress = x / totalWidth
+    case .byViewWidth(_, _):
+      let progress = x / frame.width
       return max(0, min(totalSamples, Int(CGFloat(totalSamples) * progress)))
     case .perSecond(let widthPerSecond, _, _):
       let seconds = x / CGFloat(widthPerSecond)
@@ -199,10 +212,9 @@ extension RDMWaveformContentView {
 
     let totalSeconds = duration.seconds
     switch resolution {
-    case .byViewWidth(let scale, _, _):
-      let totalWidth = frame.width * scale
-      let lowerBound = Double((contentOffset - marginLeft) / totalWidth) * totalSeconds
-      let upperBound = Double((contentOffset + visibleWidth - marginLeft) / totalWidth) * totalSeconds
+    case .byViewWidth(_, _):
+      let lowerBound = Double((contentOffset - marginLeft) / frame.width) * totalSeconds
+      let upperBound = Double((contentOffset + visibleWidth - marginLeft) / frame.width) * totalSeconds
       return (max(0, min(totalSeconds, lowerBound)), max(0, min(totalSeconds, upperBound)))
     case .perSecond(let widthPerSecond, _, _):
       let lowerBound = Double((contentOffset - marginLeft) / CGFloat(widthPerSecond))
@@ -229,10 +241,12 @@ extension RDMWaveformContentView {
       let resolution = resolution else { return 0 }
 
     switch resolution {
-    case .byViewWidth(_, _, _):
-      // TODO
-      return 0
-    case .perSecond(let widthPerSecond, _, let linesPerSecond):
+    case .byViewWidth(let stride, _):
+      let progress = CGFloat(sampleIndex) / CGFloat(totalSamples)
+      let index = visibleWidth * progress
+      let maxIndex = visibleWidth / CGFloat(stride)
+      return stride * max(0, floor(min(maxIndex, index)))
+    case .perSecond(let widthPerSecond, let linesPerSecond, _):
       let downsampleRate = calcDownsampleRate()
       let stride = widthPerSecond / linesPerSecond
       let index = round(CGFloat(sampleIndex / downsampleRate))
@@ -261,9 +275,9 @@ extension RDMWaveformContentView {
   public var lineWidth: CGFloat {
     guard let resolution = resolution else { return 1 }
     switch resolution {
-    case .byViewWidth(_, let lineWidth, _):
+    case .byViewWidth(_, let lineWidth):
       return lineWidth
-    case .perSecond(_, let lineWidth, _):
+    case .perSecond(_, _, let lineWidth):
       return lineWidth
     }
   }
@@ -271,9 +285,9 @@ extension RDMWaveformContentView {
   public var lineStride: CGFloat {
     guard let resolution = resolution else { return 0 }
     switch resolution {
-    case .byViewWidth(_, _, let stride):
+    case .byViewWidth(let stride, _):
       return stride
-    case .perSecond(let width, _, let lines):
+    case .perSecond(let width, let lines, _):
       return CGFloat(width) / CGFloat(lines)
     }
   }

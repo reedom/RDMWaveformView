@@ -1,6 +1,6 @@
 //
 //  RDMWaveformTimeGuageView.swift
-//  music player
+//  RDMWaveformView
 //
 //  Created by HANAI Tohru on 4/14/19.
 //  Copyright © 2019 reedom. All rights reserved.

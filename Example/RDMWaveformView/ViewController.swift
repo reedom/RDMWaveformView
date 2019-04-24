@@ -12,6 +12,7 @@ import MediaPlayer
 
 class ViewController: UIViewController {
 
+  var scrollableWaveformView: RDMScrollableWaveformView!
   var waveformView: RDMWaveformView!
   var loadingStartTime: Date!
   var downsampleStartTime: Date!
@@ -28,16 +29,31 @@ class ViewController: UIViewController {
 
     view.backgroundColor = UIColor.black
 
-    waveformView = RDMWaveformView()
-    waveformView.delegate = self
-    view.addSubview(waveformView)
+    scrollableWaveformView = {
+      let waveformView = RDMScrollableWaveformView()
+      waveformView.delegate = self
+      view.addSubview(waveformView)
 
-    waveformView.translatesAutoresizingMaskIntoConstraints = false
-    waveformView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor).isActive = true
-    waveformView.leftAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leftAnchor).isActive = true
-    waveformView.rightAnchor.constraint(equalTo: view.safeAreaLayoutGuide.rightAnchor).isActive = true
-    waveformView.heightAnchor.constraint(equalToConstant: 175).isActive = true
-    waveformView.guageView.backgroundColor = UIColor.black
+      waveformView.translatesAutoresizingMaskIntoConstraints = false
+      waveformView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor).isActive = true
+      waveformView.leftAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leftAnchor).isActive = true
+      waveformView.rightAnchor.constraint(equalTo: view.safeAreaLayoutGuide.rightAnchor).isActive = true
+      waveformView.heightAnchor.constraint(equalToConstant: 175).isActive = true
+      waveformView.guageView.backgroundColor = UIColor.black
+      return waveformView
+    }()
+
+    waveformView = {
+      let waveformView = RDMWaveformView()
+      view.addSubview(waveformView)
+
+      waveformView.translatesAutoresizingMaskIntoConstraints = false
+      waveformView.topAnchor.constraint(equalTo: scrollableWaveformView.bottomAnchor, constant: 12).isActive = true
+      waveformView.leftAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leftAnchor).isActive = true
+      waveformView.rightAnchor.constraint(equalTo: view.safeAreaLayoutGuide.rightAnchor).isActive = true
+      waveformView.heightAnchor.constraint(equalToConstant: 50).isActive = true
+      return waveformView
+    }()
 
     timeLabel = {
       let label = UILabel()
@@ -116,6 +132,7 @@ class ViewController: UIViewController {
 
     // "⟸ ⟹" "■" "◼"
     let url = Bundle.main.url(forResource: "file_example_MP3_700KB", withExtension: "mp3")
+    scrollableWaveformView.audioURL = url
     waveformView.audioURL = url
     do {
       try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
@@ -136,23 +153,23 @@ class ViewController: UIViewController {
   }
 }
 
-extension ViewController: RDMWaveformViewDelegate {
+extension ViewController: RDMScrollableWaveformViewDelegate {
 
   /// An audio file will be loaded
-  public func waveformViewWillLoad(_ waveformView: RDMWaveformView) {
+  public func waveformViewWillLoad(_ waveformView: RDMScrollableWaveformView) {
     NSLog("waveformViewWillLoad")
     loadingStartTime = Date()
   }
 
   /// An audio file was loaded
-  public func waveformViewDidLoad(_ waveformView: RDMWaveformView) {
+  public func waveformViewDidLoad(_ waveformView: RDMScrollableWaveformView) {
     let end = Date()
     NSLog("Loading done, took %0.3f seconds", end.timeIntervalSince(loadingStartTime))
     NSLog("waveformViewDidLoad")
-    waveformView.downsampleAll()
+    // waveformView.downsampleAll()
   }
 
-  public func waveformWillStartScrubbing(_ waveformView: RDMWaveformView) {
+  public func waveformWillStartScrubbing(_ waveformView: RDMScrollableWaveformView) {
     NSLog("waveformWillStartScrubbing")
     if player.isPlaying {
       needsToResumeAudio = true
@@ -160,7 +177,7 @@ extension ViewController: RDMWaveformViewDelegate {
     }
   }
 
-  public func waveformDidEndScrubbing(_ waveformView: RDMWaveformView) {
+  public func waveformDidEndScrubbing(_ waveformView: RDMScrollableWaveformView) {
     NSLog("waveformDidEndScrubbing")
     if needsToResumeAudio {
       needsToResumeAudio = false
@@ -168,9 +185,10 @@ extension ViewController: RDMWaveformViewDelegate {
     }
   }
 
-  public func waveformDidScroll(_ waveformView: RDMWaveformView) {
+  public func waveformDidScroll(_ waveformView: RDMScrollableWaveformView) {
     if !player.isPlaying {
       player.currentTime = waveformView.time
+      self.waveformView.time = player.currentTime
       timeLabel.text = getTimeString(player.currentTime)
     }
   }
@@ -204,7 +222,7 @@ extension ViewController: AVAudioPlayerDelegate {
 
 extension ViewController {
   @objc func handlePlay() {
-    if waveformView.isScrubbing {
+    if scrollableWaveformView.isScrubbing {
       needsToResumeAudio = true
     } else {
       player.play()
@@ -230,6 +248,7 @@ extension ViewController {
     player.currentTime = player.currentTime - 6
     timeLabel.text = getTimeString(player.currentTime)
     if !player.isPlaying {
+      scrollableWaveformView.time = player.currentTime
       waveformView.time = player.currentTime
     }
   }
@@ -238,12 +257,14 @@ extension ViewController {
     player.currentTime = player.currentTime + 6
     timeLabel.text = getTimeString(player.currentTime)
     if !player.isPlaying {
+      scrollableWaveformView.time = player.currentTime
       waveformView.time = player.currentTime
     }
   }
 
   @objc func handleTimer() {
     timeLabel.text = getTimeString(player.currentTime)
+    scrollableWaveformView.time = player.currentTime
     waveformView.time = player.currentTime
   }
 
