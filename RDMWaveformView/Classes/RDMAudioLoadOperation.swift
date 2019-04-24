@@ -62,10 +62,6 @@ final public class RDMAudioLoadOperation: Operation {
     super.init()
   }
 
-  deinit {
-    print("RDMAudioLoadOperation.deinit")
-  }
-
   public override func start() {
     guard _state == .idle else { return }
 
