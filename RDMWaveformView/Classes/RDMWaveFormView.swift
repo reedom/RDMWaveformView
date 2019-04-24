@@ -99,6 +99,14 @@ open class RDMWaveformView: UIView {
     return guageView
   }()
 
+  public lazy var centerGuide: RDMCenterGuide = {
+    let view = RDMCenterGuide()
+    addSubview(view)
+    view.isUserInteractionEnabled = false
+    view.backgroundColor = UIColor(red: 0, green: 0, blue: 0, alpha: 0)
+    return view
+  }()
+
   /// The total number of audio samples in the current track.
   public var totalSamples: Int {
     return audioContext?.totalSamples ?? 0
@@ -212,7 +220,15 @@ open class RDMWaveformView: UIView {
 
   override open func layoutSubviews() {
     super.layoutSubviews()
-    scrollView.frame = bounds
+
+    centerGuide.isHidden = waveformContentAlignment != .center
+    if centerGuide.isHidden {
+      scrollView.frame = bounds
+    } else {
+      scrollView.frame = bounds.insetBy(dx: 0, dy: centerGuide.markerDiameter)
+      centerGuide.frame = bounds
+      bringSubviewToFront(centerGuide)
+    }
 
     guard let audioContext = audioContext else {
       // TODO show empty view
@@ -356,4 +372,32 @@ extension RDMWaveformView: UIScrollViewDelegate {
 
   /// Scroll position was changed
   @objc optional func waveformDidScroll(_ waveformView: RDMWaveformView)
+}
+
+open class RDMCenterGuide: UIView {
+  public static let defaultGuideColor = UIColor(red: 52/255, green: 120/255, blue: 245/255, alpha: 1)
+
+  open var guideColor = defaultGuideColor
+  open var markerDiameter: CGFloat = 7
+
+  override open func draw(_ rect: CGRect) {
+    guard let context = UIGraphicsGetCurrentContext() else {
+      NSLog("RDMCenterGuide failed to get graphics context")
+      return
+    }
+
+    context.setFillColor(guideColor.cgColor)
+    context.setStrokeColor(guideColor.cgColor)
+
+    let mx = frame.width / 2
+    var rect = CGRect(x: 0, y: 0, width: markerDiameter, height: markerDiameter)
+    rect = rect.offsetBy(dx: mx - rect.width / 2, dy: 0)
+    context.fillEllipse(in: rect)
+    rect = rect.offsetBy(dx: 0, dy: frame.height - rect.height)
+    context.fillEllipse(in: rect)
+
+    context.move(to: CGPoint(x: rect.midX, y: rect.height / 2))
+    context.addLine(to: CGPoint(x: rect.midX, y: rect.midY))
+    context.strokePath()
+  }
 }
