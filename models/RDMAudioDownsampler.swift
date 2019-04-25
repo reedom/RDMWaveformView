@@ -59,10 +59,12 @@ class RDMAudioDownsampler {
     operations.forEach { $0.cancel() }
   }
 
-  public func downsample(samplesRange: CountableRange<Int>, callback: @escaping Callback) {
+  public func downsample(samplesRange: CountableRange<Int>,
+                         onComplete: @escaping () -> Void,
+                         callback: @escaping Callback) {
     if let gaps = handledRanges.gaps(samplesRange) {
       gaps.forEach { (samplesRange) in
-        invokeOperation(samplesRange, callback: callback)
+        invokeOperation(samplesRange, onComplete: onComplete, callback: callback)
       }
     } else {
       callback(samplesRange, getDownsamples(samplesRange))
@@ -72,12 +74,14 @@ class RDMAudioDownsampler {
   public func downsampleAll() {
     if let gaps = handledRanges.gaps(0 ..< audioContext.totalSamples) {
       gaps.forEach { (samplesRange) in
-        invokeOperation(samplesRange) { ( _, _ ) in }
+        invokeOperation(samplesRange, onComplete: {}) { ( _, _ ) in }
       }
     }
   }
 
-  private func invokeOperation(_ samplesRange: CountableRange<Int>, callback: @escaping Callback) {
+  private func invokeOperation(_ samplesRange: CountableRange<Int>,
+                               onComplete: @escaping () -> Void,
+                               callback: @escaping Callback) {
     let operation = RDMAudioLoadOperation(audioContext: audioContext,
                                           samplesRange: samplesRange,
                                           downsampleRate: downsampleRate,
@@ -99,6 +103,7 @@ class RDMAudioDownsampler {
       }
     }
 
+    operation.completionBlock = onComplete
     operations.append(operation)
     operation.start()
   }

@@ -36,6 +36,11 @@ open class RDMScrollableWaveformView: UIView {
   /// A delegate to accept progress reporting
   open weak var delegate: RDMScrollableWaveformViewDelegate?
 
+  open var preloadShorterThan: TimeInterval {
+    get { return contentView.preloadShorterThan }
+    set { contentView.preloadShorterThan = newValue }
+  }
+
   /// The audio URL to render
   open var audioURL: URL? {
     didSet {
@@ -303,6 +308,7 @@ extension RDMScrollableWaveformView {
   public func reset() {
     contentView.reset()
     guageView.reset()
+    setNeedsLayout()
   }
 }
 

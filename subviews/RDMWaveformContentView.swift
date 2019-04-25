@@ -34,6 +34,15 @@ open class RDMWaveformContentView: UIView {
 
   var downsampler: RDMAudioDownsampler?
 
+  open var preloadShorterThan: TimeInterval = 5*60 {
+    didSet {
+      guard 0 < totalSamples else { return }
+      if duration.seconds < preloadShorterThan {
+        downsampler?.downsampleAll()
+      }
+    }
+  }
+
   // MARK: - Audio helper properties
 
   /// The total number of audio samples in the current track.
@@ -83,6 +92,8 @@ open class RDMWaveformContentView: UIView {
   public var visibleWidth: CGFloat = 0
 
   private var contentOffset: CGFloat = 0
+
+  private var hasInitialRenderingDone = false
 }
 
 extension RDMWaveformContentView {
@@ -116,10 +127,20 @@ extension RDMWaveformContentView {
       let gaps = renderedTimeRanges.gaps(timeRange),
       let downsampler = downsampler else { return }
 
+    let onComplete = { [weak self] in
+      guard let self = self else { return }
+      if !self.hasInitialRenderingDone {
+        self.hasInitialRenderingDone = true
+        if self.duration.seconds < self.preloadShorterThan {
+          self.downsampler?.downsampleAll()
+        }
+      }
+    }
+
     gaps.forEach { (timeRange) in
       renderedTimeRanges.add(timeRange)
       let sampleRange = sampleRangeFrom(timeRange: timeRange)
-      downsampler.downsample(samplesRange: sampleRange) { [weak self] (chunkRange, downsamples) in
+      downsampler.downsample(samplesRange: sampleRange, onComplete: onComplete) { [weak self] (chunkRange, downsamples) in
         guard let self = self else { return }
         let hint = DrawHint(downsamples: downsamples,
                             rect: self.rectFrom(sampleRange: chunkRange))
@@ -150,6 +171,7 @@ extension RDMWaveformContentView {
   }
 
   open func reset() {
+    hasInitialRenderingDone = false
     renderedTimeRanges.removeAll()
     renderHints.removeAll()
     downsampler?.reset()
@@ -312,6 +334,7 @@ extension RDMWaveformContentView {
     renderHints.forEach { (renderHint) in
       drawWaveform(context: context, samples: renderHint.downsamples, rect: renderHint.rect)
     }
+
     renderHints.removeAll()
   }
 
