@@ -1,5 +1,6 @@
 //
 // Copyright 2013 - 2017, William Entriken and the RDMWaveformView contributors.
+// Copyright 2019, HANAI Tohru.
 //
 import UIKit
 import AVFoundation

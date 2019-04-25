@@ -1,6 +1,6 @@
 //
 //  RDMDownsampler.swift
-//  FBSnapshotTestCase
+//  RDMWaveformView
 //
 //  Created by HANAI Tohru on 4/19/19.
 //

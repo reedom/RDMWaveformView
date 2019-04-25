@@ -1,6 +1,6 @@
 //
 //  RDMWaveformContentView.swift
-//  FBSnapshotTestCase
+//  RDMWaveformView
 //
 //  Created by HANAI Tohru on 4/18/19.
 //
