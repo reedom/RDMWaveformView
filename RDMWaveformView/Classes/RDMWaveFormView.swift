@@ -37,7 +37,7 @@ open class RDMWaveformView: UIView {
 
       // Start downloading
       _loadingInProgress = true
-      delegate?.waveformViewWillLoad?(self)
+      delegate?.waveformView?(self, willLoad: audioURL)
 
       NSLog("loading audio track from \(audioURL)")
       RDMAudioContext.load(fromAudioURL: audioURL) { audioContext in
@@ -53,11 +53,13 @@ open class RDMWaveformView: UIView {
 
           self.audioContext = audioContext // This will reset the view and kick off a layout
           self._loadingInProgress = false
-          self.delegate?.waveformViewDidLoad?(self)
+          self.delegate?.waveformView?(self, didLoad: audioURL)
         }
       }
     }
   }
+
+  var timeSeekEnabled = true
 
   // MARK: - View properties
 
@@ -107,9 +109,9 @@ open class RDMWaveformView: UIView {
 
   // MARK: - State properties
 
-  private var _isScrubbing = false
-  public var isScrubbing: Bool {
-    return _isScrubbing
+  private var _inTimeSeekMode = false
+  public var inTimeSeekMode: Bool {
+    return _inTimeSeekMode
   }
 
   /// Whether loading is happening asynchronously
@@ -132,8 +134,8 @@ open class RDMWaveformView: UIView {
   public var time: TimeInterval {
     get {
       guard 0 < totalSamples else { return 0 }
-      let progress = _position / totalSamples
-      return duration.seconds * Double(progress)
+      let progress = Double(_position) / Double(totalSamples)
+      return duration.seconds * progress
     }
     set {
       guard 0 < totalSamples else { return }
@@ -195,23 +197,40 @@ open class RDMWaveformView: UIView {
     contentView.isHidden = false
     let tapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(handleTap))
     addGestureRecognizer(tapGestureRecognizer)
-    let panGestureRecognizer = UIPanGestureRecognizer(target: self, action: #selector(handleScrubbing))
+    let panGestureRecognizer = UIPanGestureRecognizer(target: self, action: #selector(handlePan))
     addGestureRecognizer(panGestureRecognizer)
   }
 
-  @objc func handleScrubbing(_ recognizer: UIPinchGestureRecognizer) {
-    guard scrubbingEnabled, 0 < totalSamples else { return }
-    let progress = recognizer.location(in: self).x / bounds.width
-    position = Int(CGFloat(totalSamples) * progress)
+  @objc func handlePan(_ recognizer: UIPinchGestureRecognizer) {
+    guard timeSeekEnabled, 0 < totalSamples else { return }
+
+    switch recognizer.state {
+    case .began:
+      if !_inTimeSeekMode {
+        _inTimeSeekMode = true
+        delegate?.waveformView?(self, willEnterSeekMode: time)
+      }
+      return
+    case .ended, .cancelled:
+      if _inTimeSeekMode {
+        _inTimeSeekMode = false
+        delegate?.waveformView?(self, didLeaveSeekMode: time)
+      }
+      return
+    case .changed:
+      let progress = recognizer.location(in: self).x / bounds.width
+      position = Int(CGFloat(totalSamples) * progress)
+      delegate?.waveformView?(self, didSeek: time)
+    default:
+      return
+    }
   }
 
-  var scrubbingEnabled = true
-
   @objc func handleTap(_ recognizer: UITapGestureRecognizer) {
-    guard scrubbingEnabled, 0 < totalSamples else { return }
+    guard timeSeekEnabled, 0 < totalSamples else { return }
     let progress = recognizer.location(in: self).x / bounds.width
     position = Int(CGFloat(totalSamples) * progress)
-    // delegate?.waveformDidEndScrubbing?(self)
+    delegate?.waveformView?(self, didSeek: time)
   }
 
   override open func willMove(toWindow newWindow: UIWindow?) {
@@ -220,6 +239,8 @@ open class RDMWaveformView: UIView {
       contentView.cancel()
     }
   }
+
+  // MARK: - view lifecycle
 
   deinit {
     contentView.cancel()
@@ -239,9 +260,11 @@ open class RDMWaveformView: UIView {
     contentView.visibleWidth = contentView.frame.width
     contentView.setNeedsDisplay()
   }
+}
 
-  // MARK: - Waveform content management
+// MARK: - Waveform content management
 
+extension RDMWaveformView {
   // Downsample entire track in advance so that it won't show
   // delay in further rendering process.
   public func downsampleAll() {
@@ -253,23 +276,27 @@ open class RDMWaveformView: UIView {
   }
 }
 
+// MARK: - RDMWaveformViewDelegate
+
 /// To receive progress updates from RDMWaveformView
 @objc public protocol RDMWaveformViewDelegate: NSObjectProtocol {
   /// An audio file will be loaded
-  @objc optional func waveformViewWillLoad(_ waveformView: RDMWaveformView)
+  @objc optional func waveformView(_ waveformView: RDMWaveformView, willLoad url: URL)
 
   /// An audio file was loaded
-  @objc optional func waveformViewDidLoad(_ waveformView: RDMWaveformView)
+  @objc optional func waveformView(_ waveformView: RDMWaveformView, didLoad url: URL)
 
-  /// The scrubbing gesture will start
-  @objc optional func waveformWillStartScrubbing(_ waveformView: RDMWaveformView)
+  /// The pan gesture will start
+  @objc optional func waveformView(_ waveformView: RDMWaveformView, willEnterSeekMode time: TimeInterval)
 
-  /// The scrubbing gesture did end
-  @objc optional func waveformDidEndScrubbing(_ waveformView: RDMWaveformView)
+  /// The pan gesture did end
+  @objc optional func waveformView(_ waveformView: RDMWaveformView, didLeaveSeekMode time: TimeInterval)
 
-  /// Scroll position was changed
-  @objc optional func waveformDidScroll(_ waveformView: RDMWaveformView)
+  /// time was changed
+  @objc optional func waveformView(_ waveformView: RDMWaveformView, didSeek time: TimeInterval)
 }
+
+// MARK: - RDMWaveformCursor
 
 public class RDMWaveformCursor: UIView {
   public static let defaultCursorColor = UIColor(red: 52/255, green: 120/255, blue: 245/255, alpha: 1)

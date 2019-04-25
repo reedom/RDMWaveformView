@@ -47,7 +47,7 @@ open class RDMScrollableWaveformView: UIView {
 
       // Start downloading
       _loadingInProgress = true
-      delegate?.waveformViewWillLoad?(self)
+      delegate?.scrollableWaveformView?(self, willLoad: audioURL)
 
       NSLog("loading audio track from \(audioURL)")
       RDMAudioContext.load(fromAudioURL: audioURL) { audioContext in
@@ -63,7 +63,7 @@ open class RDMScrollableWaveformView: UIView {
 
           self.audioContext = audioContext // This will reset the view and kick off a layout
           self._loadingInProgress = false
-          self.delegate?.waveformViewDidLoad?(self)
+          self.delegate?.scrollableWaveformView?(self, didLoad: audioURL)
         }
       }
     }
@@ -141,9 +141,9 @@ open class RDMScrollableWaveformView: UIView {
 
   // MARK: - State properties
 
-  private var _isScrubbing = false
-  public var isScrubbing: Bool {
-    return _isScrubbing
+  private var _inTimeSeekMode = false
+  public var inTimeSeekMode: Bool {
+    return _inTimeSeekMode
   }
 
   /// Whether loading is happening asynchronously
@@ -185,6 +185,7 @@ open class RDMScrollableWaveformView: UIView {
       return Int(time * TimeInterval(audioContext.sampleRate))
     }
     set {
+      guard 0 < totalSamples else { return }
       let progress = Double(newValue) / Double(totalSamples)
       time = duration.seconds * progress
     }
@@ -308,18 +309,20 @@ extension RDMScrollableWaveformView {
 // MARK: - UIScrollViewDelegate
 extension RDMScrollableWaveformView: UIScrollViewDelegate {
   public func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
-    if !_isScrubbing {
-      _isScrubbing = true
-      delegate?.waveformWillStartScrubbing?(self)
+    if !_inTimeSeekMode {
+      _inTimeSeekMode = true
+      delegate?.scrollableWaveformView?(self, willEnterSeekMode: time)
     }
   }
 
   public func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+    // `scrollView.isDecelerating` may have been turned on right after this event.
+    // To detect it, we intentionally get one-frame-delay by calling `DispatchQueue.main.async`.
     DispatchQueue.main.async { [weak self] in
       guard let self = self else { return }
       if !scrollView.isDecelerating {
-        self._isScrubbing = false
-        self.delegate?.waveformDidEndScrubbing?(self)
+        self._inTimeSeekMode = false
+        self.delegate?.scrollableWaveformView?(self, didLeaveSeekMode: self.time)
       }
     }
   }
@@ -333,12 +336,12 @@ extension RDMScrollableWaveformView: UIScrollViewDelegate {
     guageView.contentOffset = scrollView.contentOffset.x
     contentView.update(contentOffset: contentOffset,
                        direction: scrollDirection)
-    delegate?.waveformDidScroll?(self)
+    delegate?.scrollableWaveformView?(self, didSeek: time)
   }
 
   public func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
-    _isScrubbing = false
-    delegate?.waveformDidEndScrubbing?(self)
+    _inTimeSeekMode = false
+    self.delegate?.scrollableWaveformView?(self, didLeaveSeekMode: time)
   }
 
   private func scrollDirection(newContentOffset: CGFloat) -> ScrollDirection {
@@ -355,19 +358,19 @@ extension RDMScrollableWaveformView: UIScrollViewDelegate {
 /// To receive progress updates from RDMWaveformView
 @objc public protocol RDMScrollableWaveformViewDelegate: NSObjectProtocol {
   /// An audio file will be loaded
-  @objc optional func waveformViewWillLoad(_ waveformView: RDMScrollableWaveformView)
+  @objc optional func scrollableWaveformView(_ scrollableWaveformView: RDMScrollableWaveformView, willLoad url: URL)
 
   /// An audio file was loaded
-  @objc optional func waveformViewDidLoad(_ waveformView: RDMScrollableWaveformView)
+  @objc optional func scrollableWaveformView(_ scrollableWaveformView: RDMScrollableWaveformView, didLoad url: URL)
 
-  /// The scrubbing gesture will start
-  @objc optional func waveformWillStartScrubbing(_ waveformView: RDMScrollableWaveformView)
+  /// The pan gesture will start
+  @objc optional func scrollableWaveformView(_ scrollableWaveformView: RDMScrollableWaveformView, willEnterSeekMode time: TimeInterval)
 
-  /// The scrubbing gesture did end
-  @objc optional func waveformDidEndScrubbing(_ waveformView: RDMScrollableWaveformView)
+  /// The pan gesture did end
+  @objc optional func scrollableWaveformView(_ scrollableWaveformView: RDMScrollableWaveformView, didLeaveSeekMode time: TimeInterval)
 
-  /// Scroll position was changed
-  @objc optional func waveformDidScroll(_ waveformView: RDMScrollableWaveformView)
+  /// time was changed
+  @objc optional func scrollableWaveformView(_ scrollableWaveformView: RDMScrollableWaveformView, didSeek time: TimeInterval)
 }
 
 open class RDMCenterGuide: UIView {

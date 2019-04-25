@@ -45,6 +45,7 @@ class ViewController: UIViewController {
 
     waveformView = {
       let waveformView = RDMWaveformView()
+      waveformView.delegate = self
       view.addSubview(waveformView)
 
       waveformView.translatesAutoresizingMaskIntoConstraints = false
@@ -154,42 +155,54 @@ class ViewController: UIViewController {
 }
 
 extension ViewController: RDMScrollableWaveformViewDelegate {
-
-  /// An audio file will be loaded
-  public func waveformViewWillLoad(_ waveformView: RDMScrollableWaveformView) {
-    NSLog("waveformViewWillLoad")
-    loadingStartTime = Date()
-  }
-
   /// An audio file was loaded
-  public func waveformViewDidLoad(_ waveformView: RDMScrollableWaveformView) {
-    let end = Date()
-    NSLog("Loading done, took %0.3f seconds", end.timeIntervalSince(loadingStartTime))
-    NSLog("waveformViewDidLoad")
+  public func scrollableWaveformView(_ scrollableWaveformView: RDMScrollableWaveformView, didLoad url: URL) {
     // waveformView.downsampleAll()
   }
 
-  public func waveformWillStartScrubbing(_ waveformView: RDMScrollableWaveformView) {
-    NSLog("waveformWillStartScrubbing")
+  public func scrollableWaveformView(_ scrollableWaveformView: RDMScrollableWaveformView, willEnterSeekMode time: TimeInterval) {
     if player.isPlaying {
       needsToResumeAudio = true
       player.stop()
     }
   }
 
-  public func waveformDidEndScrubbing(_ waveformView: RDMScrollableWaveformView) {
-    NSLog("waveformDidEndScrubbing")
+  public func scrollableWaveformView(_ scrollableWaveformView: RDMScrollableWaveformView, didLeaveSeekMode time: TimeInterval) {
     if needsToResumeAudio {
       needsToResumeAudio = false
       handlePlay()
     }
   }
 
-  public func waveformDidScroll(_ waveformView: RDMScrollableWaveformView) {
+  public func scrollableWaveformView(_ scrollableWaveformView: RDMScrollableWaveformView, didSeek time: TimeInterval) {
     if !player.isPlaying {
-      player.currentTime = waveformView.time
-      self.waveformView.time = player.currentTime
-      timeLabel.text = getTimeString(player.currentTime)
+      player.currentTime = time
+      self.waveformView.time = time
+      timeLabel.text = getTimeString(time)
+    }
+  }
+}
+
+extension ViewController: RDMWaveformViewDelegate {
+  public func waveformView(_ waveformView: RDMWaveformView, willEnterSeekMode time: TimeInterval) {
+    if player.isPlaying {
+      needsToResumeAudio = true
+      player.stop()
+    }
+  }
+
+  public func waveformView(_ waveformView: RDMWaveformView, didLeaveSeekMode time: TimeInterval) {
+    if needsToResumeAudio {
+      needsToResumeAudio = false
+      handlePlay()
+    }
+  }
+
+  public func waveformView(_ waveformView: RDMWaveformView, didSeek time: TimeInterval) {
+    if !player.isPlaying {
+      player.currentTime = time
+      self.scrollableWaveformView.time = time
+      timeLabel.text = getTimeString(time)
     }
   }
 }
@@ -222,7 +235,7 @@ extension ViewController: AVAudioPlayerDelegate {
 
 extension ViewController {
   @objc func handlePlay() {
-    if scrollableWaveformView.isScrubbing {
+    if scrollableWaveformView.inTimeSeekMode {
       needsToResumeAudio = true
     } else {
       player.play()
