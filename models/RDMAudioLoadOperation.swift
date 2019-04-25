@@ -130,6 +130,7 @@ final public class RDMAudioLoadOperation: Operation {
     defer { reader.cancelReading() } // Cancel reading if we exit early if operation is cancelled
 
     var downsampleIndex = 0
+    var lastSample: CGFloat?
     while reader.status == .reading {
       guard !isCancelled else { return }
 
@@ -163,11 +164,13 @@ final public class RDMAudioLoadOperation: Operation {
       let chunkTo = samplesRange.lowerBound + ((downsampleIndex + downsampleCount)  * downsampleRate)
       self.callback(self, chunkFrom ..< chunkTo, downsamples)
       downsampleIndex += downsampleCount
+      lastSample = downsamples.last
     }
     guard !isCancelled else { return }
 
-    if 0 < sampleBuffer.count {
-      print("there are remaining samples but just ignore it since they are too small to process")
+    if 0 < sampleBuffer.count, let lastSample = lastSample {
+      let chunkFrom = samplesRange.lowerBound + (downsampleIndex * downsampleRate)
+      self.callback(self, chunkFrom ..< samplesRange.upperBound, [lastSample])
     }
 
     // if (reader.status == AVAssetReaderStatusFailed || reader.status == AVAssetReaderStatusUnknown)
@@ -221,7 +224,7 @@ final public class RDMAudioLoadOperation: Operation {
     }
 
     // Remove processed samples
-    sampleBuffer.removeFirst(downsampleRate * downsampleCount * MemoryLayout<Int16>.size)
+    sampleBuffer.removeFirst(min(sampleBuffer.count, downsampleRate * downsampleCount * MemoryLayout<Int16>.size))
 
     return result
   }
