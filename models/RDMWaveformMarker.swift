@@ -7,7 +7,7 @@
 
 import UIKit
 
-public struct RDMMarker {
+public struct RDMWaveformMarker {
   let position: CGFloat
   let name: String
 }

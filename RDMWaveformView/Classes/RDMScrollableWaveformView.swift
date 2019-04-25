@@ -199,7 +199,7 @@ open class RDMScrollableWaveformView: UIView {
   // MARK: - Marker property
 
   /// The samples to be highlighted in a different color
-  open var markers = [RDMMarker]() {
+  open var markers = [RDMWaveformMarker]() {
     didSet {
       guard audioContext != nil else { return }
       setNeedsLayout()
