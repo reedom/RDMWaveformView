@@ -13,6 +13,18 @@ open class RDMCenterGuide: UIView {
   open var guideColor = defaultGuideColor
   open var markerDiameter: CGFloat = 7
 
+  public required init?(coder aDecoder: NSCoder) {
+    super.init(coder: aDecoder)
+    isUserInteractionEnabled = false
+    contentMode = .redraw
+  }
+
+  public override init(frame: CGRect) {
+    super.init(frame: frame)
+    isUserInteractionEnabled = false
+    contentMode = .redraw
+  }
+
   override open func draw(_ rect: CGRect) {
     guard let context = UIGraphicsGetCurrentContext() else {
       NSLog("RDMCenterGuide failed to get graphics context")

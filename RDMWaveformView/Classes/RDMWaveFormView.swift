@@ -201,7 +201,7 @@ open class RDMWaveformView: UIView {
     addGestureRecognizer(panGestureRecognizer)
   }
 
-  @objc func handlePan(_ recognizer: UIPinchGestureRecognizer) {
+  @objc func handlePan(_ recognizer: UIPanGestureRecognizer) {
     guard timeSeekEnabled, 0 < totalSamples else { return }
 
     switch recognizer.state {

@@ -82,7 +82,6 @@ open class RDMScrollableWaveformView: UIView {
     }
   }
 
-
   public var marginBackgroundColor = UIColor(red: 18/255, green: 18/255, blue: 20/255, alpha: 1) {
     didSet {
       scrollView.backgroundColor = marginBackgroundColor
@@ -109,8 +108,8 @@ open class RDMScrollableWaveformView: UIView {
 
   /// `scrollView` contains `contentView` and `guageView`.
   open lazy var scrollView: UIScrollView = {
-    let scrollView = UIScrollView(frame: bounds)
-    scrollView.backgroundColor = marginBackgroundColor
+    let scrollView = RDMWaveformScrollView(frame: bounds)
+    scrollView.backgroundColor = UIColor.transparent
     scrollView.showsVerticalScrollIndicator = false
     scrollView.showsHorizontalScrollIndicator = false
     addSubview(scrollView)
@@ -128,6 +127,14 @@ open class RDMScrollableWaveformView: UIView {
     return contentView
   }()
 
+  /// `contentBackgroundView` renders `marginBackgroundColor`
+  public lazy var contentBackgroundView: UIView = {
+    let view = UIView()
+    view.backgroundColor = marginBackgroundColor
+    scrollView.addSubview(view)
+    return view
+  }()
+
   /// `guageView` renders a time guage. Used optionally.
   public lazy var guageView: RDMWaveformTimeGuageView = {
     let guageView = RDMWaveformTimeGuageView()
@@ -139,9 +146,26 @@ open class RDMScrollableWaveformView: UIView {
   public lazy var centerGuide: RDMCenterGuide = {
     let view = RDMCenterGuide()
     addSubview(view)
-    view.isUserInteractionEnabled = false
-    view.backgroundColor = UIColor(red: 0, green: 0, blue: 0, alpha: 0)
+    view.backgroundColor = UIColor.transparent
     return view
+  }()
+
+  public lazy var markersContainer: RDMWaveformMarkersContainer = {
+    let view = RDMWaveformMarkersContainer()
+    addSubview(view)
+    view.backgroundColor = UIColor.transparent
+    return view
+  }()
+
+  public lazy var addMarkerButton: UIButton = {
+    let button = UIButton(type: .custom)
+    addSubview(button)
+    button.setTitle("＋", for: .normal)
+    button.contentHorizontalAlignment = .center
+    button.contentVerticalAlignment = .bottom
+    button.setTitleColor(markersContainer.markerColor, for: .normal)
+    button.addTarget(self, action: #selector(addMarker), for: .touchUpInside)
+    return button
   }()
 
   // MARK: - State properties
@@ -196,12 +220,28 @@ open class RDMScrollableWaveformView: UIView {
     }
   }
 
-  // MARK: - Marker property
+  // MARK: - Subview on/off
 
-  /// The samples to be highlighted in a different color
-  open var markers = [RDMWaveformMarker]() {
-    didSet {
-      guard audioContext != nil else { return }
+  open var showMarker: Bool {
+    get { return !markersContainer.isHidden }
+    set {
+      markersContainer.isHidden = !newValue
+      setNeedsLayout()
+    }
+  }
+
+  open var showGuage: Bool {
+    get { return !guageView.isHidden }
+    set {
+      guageView.isHidden = !newValue
+      setNeedsLayout()
+    }
+  }
+
+  open var showCenterGuide: Bool {
+    get { return !centerGuide.isHidden }
+    set {
+      centerGuide.isHidden = !newValue
       setNeedsLayout()
     }
   }
@@ -229,6 +269,7 @@ open class RDMScrollableWaveformView: UIView {
   private var audioContext: RDMAudioContext? {
     didSet {
       contentView.audioContext = audioContext
+      markersContainer.totalSamples = totalSamples
       reset()
       setNeedsLayout()
     }
@@ -254,31 +295,44 @@ extension RDMScrollableWaveformView {
   override open func layoutSubviews() {
     super.layoutSubviews()
 
-    centerGuide.isHidden = waveformContentAlignment != .center
-    if centerGuide.isHidden {
-      scrollView.frame = bounds
-    } else {
-      scrollView.frame = bounds.insetBy(dx: 0, dy: centerGuide.markerDiameter)
-      centerGuide.frame = bounds
-      bringSubviewToFront(centerGuide)
-    }
-
     guard 0 < totalSamples else {
       // TODO show empty view
       return
     }
+
+    // Layout markersContainer and scrollView
+
+    if showMarker {
+      scrollView.frame = CGRect(x: 0,
+                                y: markersContainer.markerTouchSize.height,
+                                width: bounds.width,
+                                height: bounds.height - markersContainer.markerTouchSize.height)
+    } else {
+      scrollView.frame = bounds
+    }
+
+    if showCenterGuide {
+      if showGuage {
+        // Cut top `centerGuide.markerDiameter` pixels off.
+        // (No need to cut bottom since the bottom marker overlays in the guage area)
+        scrollView.frame = scrollView.frame
+          .insetBy(dx: 0, dy: centerGuide.markerDiameter)
+          .offsetBy(dx: 0, dy: centerGuide.markerDiameter / 2)
+      } else {
+        // Shrink vertically
+        scrollView.frame = scrollView.frame
+          .insetBy(dx: 0, dy: centerGuide.markerDiameter)
+      }
+    }
+
+    // Layout scrollView's subviews
 
     let waveformWidth = contentView.contentWidth
     scrollView.contentSize = CGSize(width: ceil(waveformWidth + contentMargin * 2),
                                     height: scrollView.frame.height)
     contentView.marginLeft = contentMargin
     contentView.visibleWidth = scrollView.frame.width
-    if guageView.isHidden {
-      contentView.frame = CGRect(x: ceil(contentMargin),
-                                 y: 0,
-                                 width: waveformWidth,
-                                 height: scrollView.contentSize.height)
-    } else {
+    if showGuage {
       contentView.frame = CGRect(x: ceil(contentMargin),
                                  y: 0,
                                  width: waveformWidth,
@@ -289,10 +343,54 @@ extension RDMScrollableWaveformView {
                                y: contentView.frame.maxY,
                                width: scrollView.contentSize.width + scrollView.frame.width,
                                height: guageHeight)
+    } else {
+      contentView.frame = CGRect(x: ceil(contentMargin),
+                                 y: 0,
+                                 width: waveformWidth,
+                                 height: scrollView.contentSize.height)
     }
+    contentBackgroundView.frame = CGRect(x: -scrollView.frame.width / 2,
+                                         y: 0,
+                                         width: scrollView.contentSize.width + scrollView.frame.width,
+                                         height: contentView.frame.height)
+
+    // Layout centerGuide
+
+    if showCenterGuide {
+      centerGuide.frame = CGRect(x: (bounds.width - centerGuide.markerDiameter) / 2,
+                                 y: scrollView.frame.minY - centerGuide.markerDiameter,
+                                 width: centerGuide.markerDiameter,
+                                 height: contentView.frame.height + centerGuide.markerDiameter * 2)
+    }
+
+    // Layout makerContainer
+
+    if showMarker {
+      markersContainer.markerLineHeight = scrollView.frame.minY + contentView.frame.height
+      markersContainer.frame = CGRect(x: contentView.frame.minX,
+                                      y: 0,
+                                      width: contentView.frame.width,
+                                      height: markersContainer.markerTouchSize.height)
+      addMarkerButton.frame = CGRect(x: frame.midX - markersContainer.markerTouchSize.width / 2,
+                                     y: 0,
+                                     width: markersContainer.markerTouchSize.width,
+                                     height: markersContainer.markerTouchSize.height)
+    }
+
+    // Reorder subviews
+
+    scrollView.sendSubviewToBack(contentBackgroundView)
+    bringSubviewToFront(centerGuide)
+    bringSubviewToFront(markersContainer)
+    bringSubviewToFront(addMarkerButton)
+
+    // Advice subviews to render
 
     guageView.contentOffset = scrollView.contentOffset.x
     contentView.setNeedsDisplay()
+    if showMarker {
+      markersContainer.updateMarkers()
+    }
   }
 }
 
@@ -335,6 +433,15 @@ extension RDMScrollableWaveformView: UIScrollViewDelegate {
 
   // any offset changes
   public func scrollViewDidScroll(_ scrollView: UIScrollView) {
+    // markerContainer
+    if showMarker {
+      let dx = (contentView.frame.minX - scrollView.contentOffset.x) - markersContainer.frame.minX
+      markersContainer.frame = markersContainer.frame.offsetBy(dx: dx, dy: 0)
+      markersContainer.contentOffsetDidChange(dx: scrollView.contentOffset.x - lastScrollContentOffset)
+    }
+
+    // contentView and guideView
+
     let contentOffset = max(0, min(scrollView.contentSize.width, scrollView.contentOffset.x))
     let scrollDirection = self.scrollDirection(newContentOffset: contentOffset)
     lastScrollContentOffset = contentOffset
@@ -342,6 +449,9 @@ extension RDMScrollableWaveformView: UIScrollViewDelegate {
     guageView.contentOffset = scrollView.contentOffset.x
     contentView.update(contentOffset: contentOffset,
                        direction: scrollDirection)
+
+    // delegate
+
     delegate?.scrollableWaveformView?(self, didSeek: time)
   }
 
@@ -361,6 +471,14 @@ extension RDMScrollableWaveformView: UIScrollViewDelegate {
   }
 }
 
+// MARK: - Marker management
+
+extension RDMScrollableWaveformView {
+  @objc private func addMarker() {
+    markersContainer.addMarker(position: position)
+  }
+}
+
 /// To receive progress updates from RDMWaveformView
 @objc public protocol RDMScrollableWaveformViewDelegate: NSObjectProtocol {
   /// An audio file will be loaded
@@ -377,4 +495,19 @@ extension RDMScrollableWaveformView: UIScrollViewDelegate {
 
   /// time was changed
   @objc optional func scrollableWaveformView(_ scrollableWaveformView: RDMScrollableWaveformView, didSeek time: TimeInterval)
+}
+
+class RDMWaveformScrollView: UIScrollView {
+  required init?(coder aDecoder: NSCoder) {
+    super.init(coder: aDecoder)
+  }
+  override init(frame: CGRect) {
+    super.init(frame: frame)
+  }
+  override open func touchesShouldBegin(_ touches: Set<UITouch>, with event: UIEvent?, in view: UIView) -> Bool {
+    return true
+  }
+  override open func touchesShouldCancel(in view: UIView) -> Bool {
+    return true
+  }
 }

@@ -40,6 +40,8 @@ class ViewController: UIViewController {
       waveformView.rightAnchor.constraint(equalTo: view.safeAreaLayoutGuide.rightAnchor).isActive = true
       waveformView.heightAnchor.constraint(equalToConstant: 175).isActive = true
       waveformView.guageView.backgroundColor = UIColor.black
+      waveformView.showMarker = true
+      waveformView.markersContainer.markers.append(RDMWaveformMarker(position: 32000 * 0))
       return waveformView
     }()
 
