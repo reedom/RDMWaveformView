@@ -34,10 +34,10 @@ open class RDMWaveformContentView: UIView {
 
   var downsampler: RDMAudioDownsampler?
 
-  open var preloadShorterThan: TimeInterval = 5*60 {
+  open var preloadIfTrackShorterThan: TimeInterval = 5*60 {
     didSet {
       guard 0 < totalSamples else { return }
-      if duration.seconds < preloadShorterThan {
+      if duration.seconds < preloadIfTrackShorterThan {
         downsampler?.downsampleAll()
       }
     }
@@ -59,6 +59,8 @@ open class RDMWaveformContentView: UIView {
 
   public var renderingUnitFactor: Float = 1.5
   public var marginLeft: CGFloat = 0
+  /// Visible width on the screen. The width of the parent view should relate this.
+  public var visibleWidth: CGFloat = 0
 
   public var contentWidth: CGFloat {
     guard let resolution = resolution else { return 0 }
@@ -87,9 +89,6 @@ open class RDMWaveformContentView: UIView {
   }
 
   private var renderHints = [DrawHint]()
-
-  /// Visible width on the screen. The width of the parent view should relate this.
-  public var visibleWidth: CGFloat = 0
 
   private var contentOffset: CGFloat = 0
 
@@ -131,7 +130,7 @@ extension RDMWaveformContentView {
       guard let self = self else { return }
       if !self.hasInitialRenderingDone {
         self.hasInitialRenderingDone = true
-        if self.duration.seconds < self.preloadShorterThan {
+        if self.duration.seconds < self.preloadIfTrackShorterThan {
           self.downsampler?.downsampleAll()
         }
       }

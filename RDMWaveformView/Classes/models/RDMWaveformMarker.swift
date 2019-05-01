@@ -5,32 +5,37 @@
 //  Created by HANAI Tohru on 2019/04/22.
 //
 
-import UIKit
-
-public struct RDMWaveformMarker {
+public class RDMWaveformMarker: NSObject {
   public let uuid: String
-  public let position: Int
-  public let data: Data?
 
-  public init(uuid: String, position: Int, data: Data? = nil) {
+  public var time: TimeInterval {
+    didSet {
+      delegate?.markerDidUpdateTime(self)
+    }
+  }
+
+  public var data: Data? {
+    didSet {
+      delegate?.markerDidUpdateData(self)
+    }
+  }
+
+  weak var delegate: RDMWaveformMarkerDelegate?
+
+  public init(uuid: String, time: TimeInterval, data: Data? = nil) {
     self.uuid = uuid
-    self.position = position
+    self.time = time
     self.data = data
   }
 
-  public init(position: Int, data: Data? = nil) {
+  public init(time: TimeInterval, data: Data? = nil) {
     self.uuid = UUID().uuidString
-    self.position = position
+    self.time = time
     self.data = data
   }
 }
 
-extension RDMWaveformMarker {
-  public func copy(withPosition position: Int) -> RDMWaveformMarker {
-    return RDMWaveformMarker(uuid: uuid, position: position, data: data)
-  }
-
-  public func copy(withData data: Data?) -> RDMWaveformMarker {
-    return RDMWaveformMarker(uuid: uuid, position: position, data: data)
-  }
+protocol RDMWaveformMarkerDelegate: class {
+  func markerDidUpdateTime(_ marker: RDMWaveformMarker)
+  func markerDidUpdateData(_ marker: RDMWaveformMarker)
 }

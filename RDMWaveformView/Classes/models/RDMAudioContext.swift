@@ -11,11 +11,13 @@ public struct RDMAudioContext {
   /// The audio asset URL used to load the context
   public let audioURL: URL
 
+  /// Count of sample data per second.
   public let sampleRate: Int
 
   /// Total number of samples in loaded asset
   public let totalSamples: Int
 
+  /// Count of sound channels.
   public let channelCount: Int
 
   /// Loaded asset
@@ -26,12 +28,11 @@ public struct RDMAudioContext {
 }
 
 extension RDMAudioContext {
-  public static func load(fromAudioURL audioURL: URL, completionHandler: @escaping (_ audioContext: RDMAudioContext?) -> ()) {
+  public static func load(fromAudioURL audioURL: URL, completionHandler: @escaping (_ audioContext: Result<RDMAudioContext, RDMAudioError>) -> ()) {
     let asset = AVURLAsset(url: audioURL, options: [AVURLAssetPreferPreciseDurationAndTimingKey: NSNumber(value: true)])
 
     guard let assetTrack = asset.tracks(withMediaType: AVMediaType.audio).first else {
-      print("FDWaveformView failed to load AVAssetTrack")
-      completionHandler(nil)
+      completionHandler(.failure(RDMAudioError("The track does not contain audio")))
       return
     }
 
@@ -47,21 +48,24 @@ extension RDMAudioContext {
           else { break }
 
         let totalSamples = Int((asbd.pointee.mSampleRate) * Float64(asset.duration.value) / Float64(asset.duration.timescale))
-        print("totalSamples: \(totalSamples)")
         let audioContext = RDMAudioContext(audioURL: audioURL,
                                            sampleRate: Int(asbd.pointee.mSampleRate),
                                            totalSamples: totalSamples,
                                            channelCount: Int(asbd.pointee.mChannelsPerFrame),
                                            asset: asset,
                                            assetTrack: assetTrack)
-        completionHandler(audioContext)
+        completionHandler(.success(audioContext))
         return
 
       default:
         print("FDWaveformView could not load asset: \(error?.localizedDescription ?? "Unknown error")")
       }
 
-      completionHandler(nil)
+      if let error = error {
+        completionHandler(.failure(RDMAudioError(error.localizedDescription)))
+      } else {
+        completionHandler(.failure(RDMAudioError("Failed to load the audio track")))
+      }
     }
   }
 }

@@ -10,7 +10,9 @@ import UIKit
 public class RDMWaveformCursor: UIView {
   public static let defaultCursorColor = UIColor(red: 52/255, green: 120/255, blue: 245/255, alpha: 1)
 
-  open var cursorColor = defaultCursorColor
+  open var cursorColor = defaultCursorColor {
+    didSet { setNeedsDisplay() }
+  }
 
   public required init?(coder aDecoder: NSCoder) {
     super.init(coder: aDecoder)

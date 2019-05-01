@@ -12,19 +12,45 @@ import AVFoundation
 import SparseRanges
 
 public class RDMWaveformTimeGuageView: UIView {
-  public var visibleWidth: CGFloat = 0
-  public var marginLeft: CGFloat = 0
-  public var labelPaddingLeft: CGFloat = -2
-  public var labelPaddingBottom: CGFloat = 1
-  public var widthPerSecond: CGFloat = 100
-  public var linesPerSecond: Int = 4
-  public var majorLinePaddingBottom: CGFloat = 1
-  public var minorLinePaddingBottom: CGFloat = 3
-  public var majorLineWidth: CGFloat = 1
-  public var minorLineWidth: CGFloat = 0.5
-  public var font: UIFont = UIFont(name: "Courier", size: 14)!
-  public var lineColor: UIColor = UIColor(red: 88/255, green: 88/255, blue: 88/255, alpha: 1)
-  public var labelColor: UIColor = UIColor(red: 88/255, green: 88/255, blue: 88/255, alpha: 1)
+  public var visibleWidth: CGFloat = 0 {
+    didSet { setNeedsDisplay() }
+  }
+  public var marginLeft: CGFloat = 0 {
+    didSet { setNeedsDisplay() }
+  }
+  public var labelPaddingLeft: CGFloat = -2 {
+    didSet { setNeedsDisplay() }
+  }
+  public var labelPaddingBottom: CGFloat = 1 {
+    didSet { setNeedsDisplay() }
+  }
+  public var widthPerSecond: CGFloat = 100 {
+    didSet { setNeedsDisplay() }
+  }
+  public var linesPerSecond: Int = 4 {
+    didSet { setNeedsDisplay() }
+  }
+  public var majorLinePaddingBottom: CGFloat = 1 {
+    didSet { setNeedsDisplay() }
+  }
+  public var minorLinePaddingBottom: CGFloat = 3 {
+    didSet { setNeedsDisplay() }
+  }
+  public var majorLineWidth: CGFloat = 1 {
+    didSet { setNeedsDisplay() }
+  }
+  public var minorLineWidth: CGFloat = 0.5 {
+    didSet { setNeedsDisplay() }
+  }
+  public var font: UIFont = UIFont(name: "Courier", size: 14)! {
+    didSet { setNeedsDisplay() }
+  }
+  public var lineColor: UIColor = UIColor(red: 88/255, green: 88/255, blue: 88/255, alpha: 1) {
+    didSet { setNeedsDisplay() }
+  }
+  public var labelColor: UIColor = UIColor(red: 88/255, green: 88/255, blue: 88/255, alpha: 1) {
+    didSet { setNeedsDisplay() }
+  }
 
   public var contentOffset: CGFloat = 0 {
     didSet {
@@ -36,10 +62,6 @@ public class RDMWaveformTimeGuageView: UIView {
 
   private var renderedTimeRanges = SparseCountableRange<Int>()
   private var timeRanges = [CountableRange<Int>]()
-
-  open func reset() {
-    // TODO
-  }
 
   public func refresh() {
     renderedTimeRanges.removeAll()

@@ -16,7 +16,6 @@ open class RDMWaveformMarkerView: UIView {
 
   public weak var delegate: RDMWaveformMarkerViewDelegate?
 
-  private var panBeginPos: CGFloat = 0
   private var touchView: UIView!
 
   public required init?(coder aDecoder: NSCoder) {
@@ -60,7 +59,6 @@ open class RDMWaveformMarkerView: UIView {
 //..     print("\(recognizer.state.rawValue) \(recognizer.location(in: superview).y)")
     switch recognizer.state {
     case .began:
-      panBeginPos = recognizer.location(in: superview).x
       delegate?.waveformMarkerView?(self, willBeginDrag: uuid)
     case .ended, .cancelled:
       delegate?.waveformMarkerView?(self, didEndDrag: uuid)

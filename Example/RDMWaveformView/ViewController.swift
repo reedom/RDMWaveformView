@@ -29,27 +29,33 @@ class ViewController: UIViewController {
 
     view.backgroundColor = UIColor.black
 
+    let controller = RDMWaveformController()
+    controller.delegate = self
+    let markers = RDMWaveformMarkersController()
+    markers.add(at: 6, data: nil)
+
     scrollableWaveformView = {
       let waveformView = RDMScrollableWaveformView()
-      waveformView.delegate = self
       view.addSubview(waveformView)
 
+      waveformView.guageView.backgroundColor = UIColor.black
+      waveformView.showMarker = true
+      waveformView.controller = controller
+      waveformView.markersController = markers
       waveformView.translatesAutoresizingMaskIntoConstraints = false
       waveformView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor).isActive = true
       waveformView.leftAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leftAnchor).isActive = true
       waveformView.rightAnchor.constraint(equalTo: view.safeAreaLayoutGuide.rightAnchor).isActive = true
       waveformView.heightAnchor.constraint(equalToConstant: 175).isActive = true
-      waveformView.guageView.backgroundColor = UIColor.black
-      waveformView.showMarker = true
-      waveformView.markersContainer.markers.append(RDMWaveformMarker(position: 32000 * 0))
       return waveformView
     }()
 
     waveformView = {
       let waveformView = RDMWaveformView()
-      waveformView.delegate = self
       view.addSubview(waveformView)
 
+      waveformView.controller = controller
+      waveformView.markersController = markers
       waveformView.translatesAutoresizingMaskIntoConstraints = false
       waveformView.topAnchor.constraint(equalTo: scrollableWaveformView.bottomAnchor, constant: 12).isActive = true
       waveformView.leftAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leftAnchor).isActive = true
@@ -133,15 +139,38 @@ class ViewController: UIViewController {
       return button
     }()
 
+    _ = { () -> UIButton in
+      let button = UIButton(type: .custom)
+      view.addSubview(button)
+      button.translatesAutoresizingMaskIntoConstraints = false
+      button.topAnchor.constraint(equalTo: playButton.bottomAnchor, constant: 12).isActive = true
+      button.centerXAnchor.constraint(equalTo: playButton.centerXAnchor).isActive = true
+      button.widthAnchor.constraint(equalToConstant: 80).isActive = true
+      button.heightAnchor.constraint(equalToConstant: 25).isActive = true
+      button.setTitle("reload", for: .normal)
+      button.contentHorizontalAlignment = .center
+      button.setTitleColor(UIColor.white, for: .normal)
+      button.addTarget(self, action: #selector(handleReload), for: .touchUpInside)
+      return button
+    }()
+
     // "⟸ ⟹" "■" "◼"
-    let url = Bundle.main.url(forResource: "file_example_MP3_700KB", withExtension: "mp3")
-    scrollableWaveformView.audioURL = url
-    waveformView.audioURL = url
+    guard let url = Bundle.main.url(forResource: "file_example_MP3_700KB", withExtension: "mp3") else {
+      NSLog("Failed to find resource: file_example_MP3_700KB.mp3")
+      return
+    }
+
+    controller.load(url) { (error) in
+      if let error = error {
+        print(error)
+      }
+    }
+
     do {
       try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
       try AVAudioSession.sharedInstance().setActive(true)
 
-      player = try AVAudioPlayer(contentsOf: url!, fileTypeHint: AVFileType.mp3.rawValue)
+      player = try AVAudioPlayer(contentsOf: url, fileTypeHint: AVFileType.mp3.rawValue)
       guard let player = player else { return }
       player.delegate = self
       timeLabel.text = getTimeString(player.currentTime)
@@ -154,57 +183,18 @@ class ViewController: UIViewController {
     super.didReceiveMemoryWarning()
     // Dispose of any resources that can be recreated.
   }
-}
 
-extension ViewController: RDMScrollableWaveformViewDelegate {
-  /// An audio file was loaded
-  public func scrollableWaveformView(_ scrollableWaveformView: RDMScrollableWaveformView, didLoad url: URL) {
-    // waveformView.downsampleAll()
-  }
-
-  public func scrollableWaveformView(_ scrollableWaveformView: RDMScrollableWaveformView, willEnterSeekMode time: TimeInterval) {
-    if player.isPlaying {
-      needsToResumeAudio = true
-      player.stop()
+  @objc public func handleReload() {
+    guard let controller = scrollableWaveformView.controller else { return }
+    guard let url = Bundle.main.url(forResource: "file_example_MP3_700KB", withExtension: "mp3") else {
+      NSLog("Failed to find resource: file_example_MP3_700KB.mp3")
+      return
     }
-  }
 
-  public func scrollableWaveformView(_ scrollableWaveformView: RDMScrollableWaveformView, didLeaveSeekMode time: TimeInterval) {
-    if needsToResumeAudio {
-      needsToResumeAudio = false
-      handlePlay()
-    }
-  }
-
-  public func scrollableWaveformView(_ scrollableWaveformView: RDMScrollableWaveformView, didSeek time: TimeInterval) {
-    if !player.isPlaying {
-      player.currentTime = time
-      self.waveformView.time = time
-      timeLabel.text = getTimeString(time)
-    }
-  }
-}
-
-extension ViewController: RDMWaveformViewDelegate {
-  public func waveformView(_ waveformView: RDMWaveformView, willEnterSeekMode time: TimeInterval) {
-    if player.isPlaying {
-      needsToResumeAudio = true
-      player.stop()
-    }
-  }
-
-  public func waveformView(_ waveformView: RDMWaveformView, didLeaveSeekMode time: TimeInterval) {
-    if needsToResumeAudio {
-      needsToResumeAudio = false
-      handlePlay()
-    }
-  }
-
-  public func waveformView(_ waveformView: RDMWaveformView, didSeek time: TimeInterval) {
-    if !player.isPlaying {
-      player.currentTime = time
-      self.scrollableWaveformView.time = time
-      timeLabel.text = getTimeString(time)
+    controller.load(url) { (error) in
+      if let error = error {
+        print(error)
+      }
     }
   }
 }
@@ -235,9 +225,33 @@ extension ViewController: AVAudioPlayerDelegate {
   }
 }
 
+extension ViewController: RDMWaveformControllerDelegate {
+  public func waveformController(_ controller: RDMWaveformController, didUpdateTime time: TimeInterval, seekMode: Bool) {
+    timeLabel.text = getTimeString(time)
+    if !player.isPlaying {
+      player.currentTime = time
+    }
+  }
+
+  public func waveformControllerDidEnterSeekMode(_ controller: RDMWaveformController) {
+    if player.isPlaying {
+      needsToResumeAudio = true
+      player.stop()
+    }
+  }
+
+  public func waveformControllerDidLeaveSeekMode(_ controller: RDMWaveformController) {
+    if needsToResumeAudio {
+      needsToResumeAudio = false
+      handlePlay()
+    }
+  }
+}
+
 extension ViewController {
   @objc func handlePlay() {
-    if scrollableWaveformView.inTimeSeekMode {
+    guard let controller = scrollableWaveformView.controller else { return }
+    if controller.seekMode {
       needsToResumeAudio = true
     } else {
       player.play()
@@ -260,27 +274,26 @@ extension ViewController {
   }
 
   @objc func handleBack() {
+    guard let controller = scrollableWaveformView.controller else { return }
+
     player.currentTime = player.currentTime - 6
-    timeLabel.text = getTimeString(player.currentTime)
     if !player.isPlaying {
-      scrollableWaveformView.time = player.currentTime
-      waveformView.time = player.currentTime
+      controller.currentTime = player.currentTime
     }
   }
 
   @objc func handleForward() {
+    guard let controller = scrollableWaveformView.controller else { return }
+
     player.currentTime = player.currentTime + 6
-    timeLabel.text = getTimeString(player.currentTime)
     if !player.isPlaying {
-      scrollableWaveformView.time = player.currentTime
-      waveformView.time = player.currentTime
+      controller.currentTime = player.currentTime
     }
   }
 
   @objc func handleTimer() {
-    timeLabel.text = getTimeString(player.currentTime)
-    scrollableWaveformView.time = player.currentTime
-    waveformView.time = player.currentTime
+    guard let controller = scrollableWaveformView.controller else { return }
+    controller.currentTime = player.currentTime
   }
 
   func getTimeString(_ seconds: Double) -> String {

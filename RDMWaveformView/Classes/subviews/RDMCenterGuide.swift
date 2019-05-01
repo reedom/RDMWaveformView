@@ -10,8 +10,12 @@ import UIKit
 open class RDMCenterGuide: UIView {
   public static let defaultGuideColor = UIColor(red: 52/255, green: 120/255, blue: 245/255, alpha: 1)
 
-  open var guideColor = defaultGuideColor
-  open var markerDiameter: CGFloat = 7
+  open var guideColor = defaultGuideColor {
+    didSet { setNeedsDisplay() }
+  }
+  open var markerDiameter: CGFloat = 7 {
+    didSet { setNeedsDisplay() }
+  }
 
   public required init?(coder aDecoder: NSCoder) {
     super.init(coder: aDecoder)

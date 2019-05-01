@@ -20,8 +20,8 @@ open class RDMWaveformMarkersContainer: UIView {
 
   // MARK: audio property
 
-  open var totalSamples: Int = 0 {
-    didSet { updateMarkers() }
+  open var duration: TimeInterval = 0 {
+    didSet { setNeedsLayout() }
   }
 
   // MARK: - Dragging a marker
@@ -29,22 +29,27 @@ open class RDMWaveformMarkersContainer: UIView {
   private struct DraggingMarker {
     let uuid: String
     let x: CGFloat
+
+    func copy(with x: CGFloat) -> DraggingMarker {
+      return DraggingMarker(uuid: uuid, x: x)
+    }
   }
   private var draggingMarker: DraggingMarker?
 
-  // MARK: - Markers
+  // MARK: - Marker
 
-  /// The samples to be highlighted in a different color
-  private var _markers = [RDMWaveformMarker]()
-  open var markers: [RDMWaveformMarker] {
-    get {
-      return _markers
+  open var markersController: RDMWaveformMarkersController? {
+    willSet {
+      markersController?.unsubscribe(self)
+      markerViews.values.forEach({ $0.removeFromSuperview() })
     }
-    set {
-      _markers = newValue
-      updateMarkers()
+    didSet {
+      markersController?.subscribe(self)
+      setNeedsLayout()
     }
   }
+
+  private var markerViews = [String: RDMWaveformMarkerView]()
 
   // MARK: - Initialization
 
@@ -57,41 +62,36 @@ open class RDMWaveformMarkersContainer: UIView {
     super.init(frame: frame)
     clipsToBounds = false
   }
+}
 
-  // MARK: - Marker management
+// MARK: - Marker management
+extension RDMWaveformMarkersContainer {
+  override open func layoutSubviews() {
+    guard
+      0 < duration,
+      let markers = markersController?.markers
+      else { return }
 
-  public func addMarker(position: Int) -> RDMWaveformMarker? {
-    if markers.contains(where: { $0.position == position }) {
-      return nil
-    }
-
-    let marker = RDMWaveformMarker(position: position)
-    markers.append(marker)
-    return marker
-  }
-
-  public func updateMarkers() {
-    guard 0 < totalSamples else { return }
-
-    let markerViews = subviews
-      .filter { $0.self.isKind(of: RDMWaveformMarkerView.self) }
-      .map { $0 as! RDMWaveformMarkerView }
-
-    markerViews.forEach { (markerView) in
-      if let marker = markers.first(where: { $0.uuid == markerView.uuid }) {
+    // Traverse known markerViews.
+    markerViews.forEach { (uuid, markerView) in
+      if let marker = markers[uuid] {
+        // The source marker exists; update the visual position.
         markerView.frame = markerFrame(from: marker)
       } else {
+        // The source marker has gone; remove the view.
         markerView.removeFromSuperview()
       }
     }
+
+    // Create any markerViews for newly created markers as their visual representation.
 
     let touchRect = CGRect(origin: CGPoint.zero, size: markerTouchSize)
     let markerRect = CGRect(origin: CGPoint.zero, size: markerSize)
       .offsetBy(dx: (touchRect.maxX - markerSize.width) / 2,
                 dy: touchRect.height - markerSize.height)
 
-    markers
-      .filter { (marker) in !markerViews.contains(where: { $0.uuid == marker.uuid }) }
+    markers.values
+      .filter { markerViews[$0.uuid] == nil }
       .forEach { (marker) in
         let markerView = RDMWaveformMarkerView(uuid: marker.uuid,
                                                touchRect: touchRect,
@@ -101,18 +101,78 @@ open class RDMWaveformMarkersContainer: UIView {
                                                frame: markerFrame(from: marker))
         markerView.delegate = self
         addSubview(markerView)
+        markerViews[markerView.uuid] = markerView
         markerView.setNeedsDisplay()
     }
   }
 
   private func markerFrame(from marker: RDMWaveformMarker) -> CGRect {
-    guard 0 < bounds.width, 0 < totalSamples else { return CGRect.zero }
+    guard 0 < bounds.width, 0 < duration else { return CGRect.zero }
 
-    let progress = CGFloat(marker.position) / CGFloat(totalSamples)
-    return CGRect(x: bounds.width * progress - markerTouchSize.width / 2,
+    let progress = marker.time / duration
+    return CGRect(x: bounds.width * CGFloat(progress) - markerTouchSize.width / 2,
                   y: 0,
                   width: markerTouchSize.width,
                   height: markerLineHeight)
+  }
+
+  private func addMarkerViews(markers: [RDMWaveformMarker]) {
+    let touchRect = CGRect(origin: CGPoint.zero, size: markerTouchSize)
+    let markerRect = CGRect(origin: CGPoint.zero, size: markerSize)
+      .offsetBy(dx: (touchRect.maxX - markerSize.width) / 2,
+                dy: touchRect.height - markerSize.height)
+
+    markers.forEach({ (marker) in
+      guard markerViews[marker.uuid] == nil else {
+        debugPrint("RDMWaveformMarkersContainer.addMarkerViews: markerView has already been created")
+        return
+      }
+      let markerView = RDMWaveformMarkerView(uuid: marker.uuid,
+                                             touchRect: touchRect,
+                                             markerColor: markerColor,
+                                             markerRect: markerRect,
+                                             markerLineWidth: markerLineWidth,
+                                             frame: markerFrame(from: marker))
+      markerView.delegate = self
+      addSubview(markerView)
+      markerViews[markerView.uuid] = markerView
+      markerView.setNeedsDisplay()
+    })
+  }
+
+  private func updateMarkerView(marker: RDMWaveformMarker) {
+    guard let markerView = markerViews[marker.uuid] else {
+      debugPrint("RDMWaveformMarkersContainer.updateMarkerView: markerView not found")
+      return
+    }
+
+    markerView.frame = markerFrame(from: marker)
+  }
+
+  private func removeMarkerView(marker: RDMWaveformMarker) {
+    guard let markerView = markerViews.removeValue(forKey: marker.uuid) else {
+      debugPrint("RDMWaveformMarkersContainer.removeMarkerView: markerView not found")
+      return
+    }
+    markerView.delegate = nil
+    markerView.removeFromSuperview()
+  }
+}
+
+extension RDMWaveformMarkersContainer: RDMWaveformMarkersControllerDelegate {
+  public func waveformMarkersController(_ controller: RDMWaveformMarkersController, didAdd marker: RDMWaveformMarker) {
+    addMarkerViews(markers: [marker])
+  }
+
+  public func waveformMarkersController(_ controller: RDMWaveformMarkersController, didUpdatePosition marker: RDMWaveformMarker) {
+    updateMarkerView(marker: marker)
+  }
+
+  public func waveformMarkersController(_ controller: RDMWaveformMarkersController, didUpdateData marker: RDMWaveformMarker) {
+  }
+
+  public func waveformMarkersController(_ controller: RDMWaveformMarkersController, didRemove marker: RDMWaveformMarker) {
+    removeMarkerView(marker: marker)
   }
 }
 
@@ -127,7 +187,8 @@ extension RDMWaveformMarkersContainer: RDMWaveformMarkerViewDelegate {
   }
 
   public func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, didDrag uuid: String, x: CGFloat) {
-    updateMakerPosition(uuid, x)
+    draggingMarker = DraggingMarker(uuid: uuid, x: x)
+    updateMakerTime(uuid, x)
   }
 
   public func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, didEndDrag uuid: String) {
@@ -137,17 +198,19 @@ extension RDMWaveformMarkersContainer: RDMWaveformMarkerViewDelegate {
   public func contentOffsetDidChange(dx: CGFloat) {
     guard let draggingMarker = draggingMarker else { return }
 
-    let x = draggingMarker.x + dx
-    updateMakerPosition(draggingMarker.uuid, x)
+    let x = max(0, min(frame.width, draggingMarker.x + dx))
+    self.draggingMarker = draggingMarker.copy(with: x)
+    updateMakerTime(draggingMarker.uuid, x)
   }
 
-  private func updateMakerPosition(_ uuid: String, _ x: CGFloat) {
-    guard let i = markers.firstIndex(where: { $0.uuid == uuid }) else { return }
+  private func updateMakerTime(_ uuid: String, _ x: CGFloat) {
+    guard
+      0 < duration,
+      0 < frame.width,
+      let marker = markersController?.markers[uuid]
+      else { return }
 
-    let marker = markers[i]
     let progress = max(0, min(1, x / frame.width))
-    let samplePosition = Int(CGFloat(totalSamples) * progress)
-    markers[i] = marker.copy(withPosition: samplePosition)
-    draggingMarker = DraggingMarker(uuid: uuid, x: x)
+    marker.time = TimeInterval(progress) * duration
   }
 }

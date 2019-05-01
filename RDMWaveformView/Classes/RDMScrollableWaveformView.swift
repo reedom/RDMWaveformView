@@ -14,18 +14,24 @@ import SparseRanges
 /// A view for rendering audio waveforms
 open class RDMScrollableWaveformView: UIView {
   // MARK: - Types
+
+  /// The placement of the mesurement origin.
+  /// In other words, where the user see the current mesurement time.
   public enum WaveformAlignment {
-    case none
+    case left
     case center
   }
 
+  /// Scrolling direction.
   public enum ScrollDirection {
     case none
     case forward
     case backward
   }
 
+  /// The options on rendering waveforms.
   public struct WaveformRenderOptions {
+    /// Renderer draws one second amount of waveform With this width, in pixel.
     let widthPerSecond: Int
     let linesPerSecond: Int
     let lineWidth: CGFloat
@@ -33,48 +39,27 @@ open class RDMScrollableWaveformView: UIView {
 
   // MARK: - Properties
 
-  /// A delegate to accept progress reporting
-  open weak var delegate: RDMScrollableWaveformViewDelegate?
-
-  open var preloadShorterThan: TimeInterval {
-    get { return contentView.preloadShorterThan }
-    set { contentView.preloadShorterThan = newValue }
+  open var preloadIfTrackShorterThan: TimeInterval {
+    get { return contentView.preloadIfTrackShorterThan }
+    set { contentView.preloadIfTrackShorterThan = newValue }
   }
 
-  /// The audio URL to render
-  open var audioURL: URL? {
+  open var controller: RDMWaveformController? {
+    willSet {
+      controller?.unsubscribe(self)
+    }
     didSet {
-      guard let audioURL = audioURL else {
-        NSLog("RDMWaveformView received nil audioURL")
-        audioContext = nil
-        return
-      }
-
-      // Start downloading
-      _loadingInProgress = true
-      delegate?.scrollableWaveformView?(self, willLoad: audioURL)
-
-      NSLog("loading audio track from \(audioURL)")
-      RDMAudioContext.load(fromAudioURL: audioURL) { audioContext in
-        DispatchQueue.main.async {
-          guard self.audioURL == audioContext?.audioURL else { return }
-
-          if audioContext == nil {
-            NSLog("RDMWaveformView failed to load URL: \(audioURL)")
-          } else {
-            NSLog("loaded audio track from \(audioURL)")
-            NSLog("audio track duration: \(audioContext!.asset.duration.seconds)secs")
-          }
-
-          self.audioContext = audioContext // This will reset the view and kick off a layout
-          self._loadingInProgress = false
-          self.delegate?.scrollableWaveformView?(self, didLoad: audioURL)
-        }
-      }
+      controller?.subscribe(self)
+      refreshWaveform()
     }
   }
 
-  // MARK: - View properties
+  public var markersController: RDMWaveformMarkersController? {
+    get { return markersContainer.markersController }
+    set { markersContainer.markersController = newValue }
+  }
+
+  // MARK: - Appearance properties
 
   public var waveformBackgroundColor = UIColor(red: 26/255, green: 25/255, blue: 31/255, alpha: 1) {
     didSet {
@@ -105,6 +90,8 @@ open class RDMScrollableWaveformView: UIView {
                       lines: waveformRenderOptions.linesPerSecond,
                       lineWidth: waveformRenderOptions.lineWidth)
   }
+
+  /// MARK: - Subviews
 
   /// `scrollView` contains `contentView` and `guageView`.
   open lazy var scrollView: UIScrollView = {
@@ -168,58 +155,6 @@ open class RDMScrollableWaveformView: UIView {
     return button
   }()
 
-  // MARK: - State properties
-
-  private var _inTimeSeekMode = false
-  public var inTimeSeekMode: Bool {
-    return _inTimeSeekMode
-  }
-
-  /// Whether loading is happening asynchronously
-  private var _loadingInProgress = false
-  open var loadingInProgress: Bool {
-    return _loadingInProgress
-  }
-
-  /// The total number of audio samples in the current track.
-  public var totalSamples: Int {
-    return audioContext?.totalSamples ?? 0
-  }
-
-  /// The total duration of the current track.
-  public var duration: CMTime {
-    return audioContext?.asset.duration ?? CMTime.zero
-  }
-
-  /// The current time that the waveform points at.
-  public var time: TimeInterval {
-    get {
-      guard 0 < totalSamples, 0 < contentView.frame.width else { return 0 }
-      let progress = scrollView.contentOffset.x / contentView.frame.width
-      return duration.seconds * Double(progress)
-    }
-    set {
-      guard 0 < totalSamples else { return }
-      let seconds = max(0, min(duration.seconds, newValue))
-      let progress = seconds / duration.seconds
-      let x = contentView.frame.width * CGFloat(progress)
-      scrollView.contentOffset = CGPoint(x: x, y: 0)
-    }
-  }
-
-  /// The current position in the sampling data that the waveform points at.
-  public var position: Int {
-    get {
-      guard let audioContext = audioContext else { return 0 }
-      return Int(time * TimeInterval(audioContext.sampleRate))
-    }
-    set {
-      guard 0 < totalSamples else { return }
-      let progress = Double(newValue) / Double(totalSamples)
-      time = duration.seconds * progress
-    }
-  }
-
   // MARK: - Subview on/off
 
   open var showMarker: Bool {
@@ -252,7 +187,7 @@ open class RDMScrollableWaveformView: UIView {
     switch waveformContentAlignment{
     case .center:
       return scrollView.frame.width / 2
-    case .none:
+    case .left:
       return 0
     }
   }
@@ -267,12 +202,7 @@ open class RDMScrollableWaveformView: UIView {
 
   /// Current audio context to be used for rendering
   private var audioContext: RDMAudioContext? {
-    didSet {
-      contentView.audioContext = audioContext
-      markersContainer.totalSamples = totalSamples
-      reset()
-      setNeedsLayout()
-    }
+    return controller?.audioContext
   }
 
   private var lastScrollContentOffset: CGFloat = 0
@@ -295,9 +225,12 @@ extension RDMScrollableWaveformView {
   override open func layoutSubviews() {
     super.layoutSubviews()
 
-    guard 0 < totalSamples else {
-      // TODO show empty view
-      return
+    guard
+      let totalSamples = controller?.audioContext?.totalSamples,
+      0 < totalSamples
+      else {
+        // TODO show empty view
+        return
     }
 
     // Layout markersContainer and scrollView
@@ -389,8 +322,33 @@ extension RDMScrollableWaveformView {
     guageView.contentOffset = scrollView.contentOffset.x
     contentView.setNeedsDisplay()
     if showMarker {
-      markersContainer.updateMarkers()
+      markersContainer.setNeedsLayout()
     }
+  }
+}
+
+extension RDMScrollableWaveformView {
+  /// The current time that the waveform points at.
+  private func timeFromScrollOffset() -> TimeInterval {
+    guard
+      let totalSamples = controller?.audioContext?.totalSamples,
+      let duration = controller?.audioContext?.asset.duration,
+      0 < totalSamples,
+      0 < contentView.frame.width
+      else { return 0 }
+    let progress = scrollView.contentOffset.x / contentView.frame.width
+    return max(0, min(duration.seconds, duration.seconds * Double(progress)))
+  }
+
+  private func updateScrollOffset() {
+    guard
+      let duration = controller?.audioContext?.asset.duration,
+      let currentTime = controller?.currentTime,
+      0 < duration.seconds
+      else { return }
+    let progress = max(0, min(duration.seconds, currentTime)) / duration.seconds
+    let x = contentView.frame.width * CGFloat(progress)
+    scrollView.contentOffset = CGPoint(x: x, y: 0)
   }
 }
 
@@ -403,9 +361,10 @@ extension RDMScrollableWaveformView {
     contentView.downsampler?.downsampleAll()
   }
 
-  public func reset() {
+  private func refreshWaveform() {
+    contentView.audioContext = audioContext
+    markersContainer.duration = controller?.audioContext?.asset.duration.seconds ?? 0
     contentView.reset()
-    guageView.reset()
     setNeedsLayout()
   }
 }
@@ -413,21 +372,14 @@ extension RDMScrollableWaveformView {
 // MARK: - UIScrollViewDelegate
 extension RDMScrollableWaveformView: UIScrollViewDelegate {
   public func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
-    if !_inTimeSeekMode {
-      _inTimeSeekMode = true
-      delegate?.scrollableWaveformView?(self, willEnterSeekMode: time)
+    if !scrollView.isDecelerating {
+      controller?.enterSeekMode()
     }
   }
 
   public func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
-    // `scrollView.isDecelerating` may have been turned on right after this event.
-    // To detect it, we intentionally get one-frame-delay by calling `DispatchQueue.main.async`.
-    DispatchQueue.main.async { [weak self] in
-      guard let self = self else { return }
-      if !scrollView.isDecelerating {
-        self._inTimeSeekMode = false
-        self.delegate?.scrollableWaveformView?(self, didLeaveSeekMode: self.time)
-      }
+    if !decelerate {
+      self.controller?.leaveSeekMode()
     }
   }
 
@@ -452,12 +404,12 @@ extension RDMScrollableWaveformView: UIScrollViewDelegate {
 
     // delegate
 
-    delegate?.scrollableWaveformView?(self, didSeek: time)
+    let seconds = timeFromScrollOffset()
+    self.controller?.updateTime(seconds, excludeNotify: self)
   }
 
   public func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
-    _inTimeSeekMode = false
-    self.delegate?.scrollableWaveformView?(self, didLeaveSeekMode: time)
+    self.controller?.leaveSeekMode()
   }
 
   private func scrollDirection(newContentOffset: CGFloat) -> ScrollDirection {
@@ -475,26 +427,31 @@ extension RDMScrollableWaveformView: UIScrollViewDelegate {
 
 extension RDMScrollableWaveformView {
   @objc private func addMarker() {
-    markersContainer.addMarker(position: position)
+    guard
+      let time = controller?.currentTime,
+      let markersController = markersController
+      else { return }
+    guard !markersController.markers.values.contains(where: { $0.time == time }) else { return }
+    markersController.add(at: time)
   }
 }
 
-/// To receive progress updates from RDMWaveformView
-@objc public protocol RDMScrollableWaveformViewDelegate: NSObjectProtocol {
-  /// An audio file will be loaded
-  @objc optional func scrollableWaveformView(_ scrollableWaveformView: RDMScrollableWaveformView, willLoad url: URL)
+extension RDMScrollableWaveformView: RDMWaveformControllerDelegate {
+  public func waveformControllerWillLoadAudio(_ controller: RDMWaveformController) {
 
-  /// An audio file was loaded
-  @objc optional func scrollableWaveformView(_ scrollableWaveformView: RDMScrollableWaveformView, didLoad url: URL)
+  }
 
-  /// The pan gesture will start
-  @objc optional func scrollableWaveformView(_ scrollableWaveformView: RDMScrollableWaveformView, willEnterSeekMode time: TimeInterval)
+  public func waveformControllerDidLoadAudio(_ controller: RDMWaveformController) {
+    refreshWaveform()
+  }
 
-  /// The pan gesture did end
-  @objc optional func scrollableWaveformView(_ scrollableWaveformView: RDMScrollableWaveformView, didLeaveSeekMode time: TimeInterval)
+  public func waveformController(_ controller: RDMWaveformController, didUpdateTime time: TimeInterval, seekMode: Bool) {
+    updateScrollOffset()
+  }
 
-  /// time was changed
-  @objc optional func scrollableWaveformView(_ scrollableWaveformView: RDMScrollableWaveformView, didSeek time: TimeInterval)
+  public func waveformControllerDidReset(_ controller: RDMWaveformController) {
+
+  }
 }
 
 class RDMWaveformScrollView: UIScrollView {
