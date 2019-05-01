@@ -39,8 +39,8 @@ class ViewController: UIViewController {
       view.addSubview(waveformView)
 
       waveformView.guageView.backgroundColor = UIColor.black
-      waveformView.showMarker = true
       waveformView.controller = controller
+      waveformView.showMarker = true
       waveformView.markersController = markers
       waveformView.translatesAutoresizingMaskIntoConstraints = false
       waveformView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor).isActive = true
@@ -55,6 +55,7 @@ class ViewController: UIViewController {
       view.addSubview(waveformView)
 
       waveformView.controller = controller
+      waveformView.showMarker = true
       waveformView.markersController = markers
       waveformView.translatesAutoresizingMaskIntoConstraints = false
       waveformView.topAnchor.constraint(equalTo: scrollableWaveformView.bottomAnchor, constant: 12).isActive = true

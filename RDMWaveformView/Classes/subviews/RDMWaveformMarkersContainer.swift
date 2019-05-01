@@ -15,8 +15,10 @@ open class RDMWaveformMarkersContainer: UIView {
   open var markerTouchSize = CGSize(width: 36, height: 36)
   open var markerSize = CGSize(width: 8, height: 12)
   open var markerColor = defaultMarkerColor
+  open var markerLineColor = defaultMarkerColor
   open var markerLineWidth: CGFloat = 0.3
   open var markerLineHeight: CGFloat = 0
+  open var draggable = true
 
   // MARK: audio property
 
@@ -97,6 +99,7 @@ extension RDMWaveformMarkersContainer {
                                                touchRect: touchRect,
                                                markerColor: markerColor,
                                                markerRect: markerRect,
+                                               markerLineColor: markerLineColor,
                                                markerLineWidth: markerLineWidth,
                                                frame: markerFrame(from: marker))
         markerView.delegate = self
@@ -131,6 +134,7 @@ extension RDMWaveformMarkersContainer {
                                              touchRect: touchRect,
                                              markerColor: markerColor,
                                              markerRect: markerRect,
+                                             markerLineColor: markerLineColor,
                                              markerLineWidth: markerLineWidth,
                                              frame: markerFrame(from: marker))
       markerView.delegate = self
@@ -187,6 +191,7 @@ extension RDMWaveformMarkersContainer: RDMWaveformMarkerViewDelegate {
   }
 
   public func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, didDrag uuid: String, x: CGFloat) {
+    guard draggable else { return }
     draggingMarker = DraggingMarker(uuid: uuid, x: x)
     updateMakerTime(uuid, x)
   }
@@ -196,7 +201,10 @@ extension RDMWaveformMarkersContainer: RDMWaveformMarkerViewDelegate {
   }
 
   public func contentOffsetDidChange(dx: CGFloat) {
-    guard let draggingMarker = draggingMarker else { return }
+    guard
+      draggable,
+      let draggingMarker = draggingMarker
+      else { return }
 
     let x = max(0, min(frame.width, draggingMarker.x + dx))
     self.draggingMarker = draggingMarker.copy(with: x)

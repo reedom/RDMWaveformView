@@ -12,6 +12,7 @@ open class RDMWaveformMarkerView: UIView {
   public let touchRect: CGRect
   public let markerColor: UIColor
   public let markerRect: CGRect
+  public let markerLineColor: UIColor
   public let markerLineWidth: CGFloat
 
   public weak var delegate: RDMWaveformMarkerViewDelegate?
@@ -26,12 +27,14 @@ open class RDMWaveformMarkerView: UIView {
               touchRect: CGRect,
               markerColor: UIColor,
               markerRect: CGRect,
+              markerLineColor: UIColor,
               markerLineWidth: CGFloat,
               frame: CGRect = CGRect.zero) {
     self.uuid = uuid
     self.touchRect = touchRect
     self.markerColor = markerColor
     self.markerRect = markerRect
+    self.markerLineColor = markerLineColor
     self.markerLineWidth = markerLineWidth
     super.init(frame: frame)
     setup()
@@ -56,7 +59,6 @@ open class RDMWaveformMarkerView: UIView {
   }
 
   @objc private func handlePan(_ recognizer: UIPanGestureRecognizer) {
-//..     print("\(recognizer.state.rawValue) \(recognizer.location(in: superview).y)")
     switch recognizer.state {
     case .began:
       delegate?.waveformMarkerView?(self, willBeginDrag: uuid)
@@ -85,7 +87,7 @@ open class RDMWaveformMarkerView: UIView {
     context.fillPath()
 
     context.setLineWidth(markerLineWidth)
-    context.setStrokeColor(markerColor.cgColor)
+    context.setStrokeColor(markerLineColor.cgColor)
 
     context.move(to: CGPoint(x: markerRect.midX, y: markerRect.maxY))
     context.addLine(to: CGPoint(x: markerRect.midX, y: bounds.maxY))

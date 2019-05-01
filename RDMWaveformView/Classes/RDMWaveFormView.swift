@@ -33,12 +33,12 @@ open class RDMWaveformView: UIView {
     }
   }
 
-  open var timeSeekEnabled = true
-
   public var markersController: RDMWaveformMarkersController? {
     get { return markersContainer.markersController }
     set { markersContainer.markersController = newValue }
   }
+
+  open var timeSeekEnabled = true
 
   // MARK: - Appearance properties
 
@@ -91,8 +91,22 @@ open class RDMWaveformView: UIView {
     let view = RDMWaveformMarkersContainer()
     addSubview(view)
     view.backgroundColor = UIColor.transparent
+    view.markerSize = CGSize(width: 4, height: 4)
+    view.markerTouchSize = view.markerSize
+    view.markerLineColor = UIColor.transparent
+    view.draggable = false
     return view
   }()
+
+  // MARK: - Subview on/off
+
+  open var showMarker: Bool {
+    get { return !markersContainer.isHidden }
+    set {
+      markersContainer.isHidden = !newValue
+      setNeedsLayout()
+    }
+  }
 
   // MARK: - State properties
 
@@ -141,13 +155,29 @@ open class RDMWaveformView: UIView {
   override open func layoutSubviews() {
     super.layoutSubviews()
 
-    if cursorView.isHidden {
-      contentView.frame = bounds
+    // contentView
+
+    if showMarker {
+      contentView.frame = CGRect(x: 0,
+                                 y: markersContainer.markerSize.height,
+                                 width: bounds.width,
+                                 height: bounds.height - markersContainer.markerSize.height)
     } else {
-      contentView.frame = bounds.insetBy(dx: cursorWidth / 2, dy: 0)
+      contentView.frame = bounds
+    }
+
+    if !cursorView.isHidden {
+      contentView.frame = contentView.frame.insetBy(dx: cursorWidth / 2, dy: 0)
       updateCursor()
       bringSubviewToFront(cursorView)
       cursorView.setNeedsDisplay()
+    }
+    if showMarker {
+      markersContainer.markerLineHeight = contentView.frame.height
+      markersContainer.frame = CGRect(x: contentView.frame.minX,
+                                      y: 0,
+                                      width: contentView.frame.width,
+                                      height: markersContainer.markerSize.height)
     }
     contentView.visibleWidth = contentView.frame.width
     contentView.setNeedsDisplay()
@@ -166,6 +196,7 @@ extension RDMWaveformView {
     let progress = recognizer.location(in: self).x / bounds.width
     let time = Double(progress) * duration.seconds
     controller.updateTime(time, excludeNotify: self)
+    updateCursor()
   }
 
   @objc func handlePan(_ recognizer: UIPanGestureRecognizer) {
@@ -184,6 +215,7 @@ extension RDMWaveformView {
       let progress = recognizer.location(in: self).x / bounds.width
       let time = Double(progress) * duration.seconds
       controller.updateTime(time, excludeNotify: self)
+      updateCursor()
     default:
       return
     }
