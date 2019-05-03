@@ -431,7 +431,7 @@ extension RDMScrollableWaveformView {
       let time = controller?.currentTime,
       let markersController = markersController
       else { return }
-    guard !markersController.markers.values.contains(where: { $0.time == time }) else { return }
+    guard !markersController.markers.contains( where: { $0.time == time }) else { return }
     markersController.add(at: time)
   }
 }

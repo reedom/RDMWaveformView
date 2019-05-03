@@ -12,13 +12,23 @@ open class RDMWaveformMarkersContainer: UIView {
 
   // MARK: - Maker properties
 
-  open var markerTouchSize = CGSize(width: 36, height: 36)
+  open var markerTouchSize = CGSize(width: 46, height: 46)
   open var markerSize = CGSize(width: 8, height: 12)
   open var markerColor = defaultMarkerColor
   open var markerLineColor = defaultMarkerColor
   open var markerLineWidth: CGFloat = 0.3
   open var markerLineHeight: CGFloat = 0
   open var draggable = true
+
+  private var touchRect: CGRect {
+    return CGRect(origin: CGPoint.zero, size: markerTouchSize)
+  }
+
+  private var markerRect: CGRect {
+    return CGRect(origin: CGPoint.zero, size: markerSize)
+      .offsetBy(dx: (touchRect.maxX - markerSize.width) / 2,
+                dy: touchRect.height / 4)
+  }
 
   // MARK: audio property
 
@@ -71,12 +81,12 @@ extension RDMWaveformMarkersContainer {
   override open func layoutSubviews() {
     guard
       0 < duration,
-      let markers = markersController?.markers
+      let markersController = markersController
       else { return }
 
     // Traverse known markerViews.
     markerViews.forEach { (uuid, markerView) in
-      if let marker = markers[uuid] {
+      if let marker = markersController.find(uuid: uuid) {
         // The source marker exists; update the visual position.
         markerView.frame = markerFrame(from: marker)
       } else {
@@ -87,12 +97,7 @@ extension RDMWaveformMarkersContainer {
 
     // Create any markerViews for newly created markers as their visual representation.
 
-    let touchRect = CGRect(origin: CGPoint.zero, size: markerTouchSize)
-    let markerRect = CGRect(origin: CGPoint.zero, size: markerSize)
-      .offsetBy(dx: (touchRect.maxX - markerSize.width) / 2,
-                dy: touchRect.height - markerSize.height)
-
-    markers.values
+    markersController.markers
       .filter { markerViews[$0.uuid] == nil }
       .forEach { (marker) in
         let markerView = RDMWaveformMarkerView(uuid: marker.uuid,
@@ -120,11 +125,6 @@ extension RDMWaveformMarkersContainer {
   }
 
   private func addMarkerViews(markers: [RDMWaveformMarker]) {
-    let touchRect = CGRect(origin: CGPoint.zero, size: markerTouchSize)
-    let markerRect = CGRect(origin: CGPoint.zero, size: markerSize)
-      .offsetBy(dx: (touchRect.maxX - markerSize.width) / 2,
-                dy: touchRect.height - markerSize.height)
-
     markers.forEach({ (marker) in
       guard markerViews[marker.uuid] == nil else {
         debugPrint("RDMWaveformMarkersContainer.addMarkerViews: markerView has already been created")
@@ -215,7 +215,7 @@ extension RDMWaveformMarkersContainer: RDMWaveformMarkerViewDelegate {
     guard
       0 < duration,
       0 < frame.width,
-      let marker = markersController?.markers[uuid]
+      let marker = markersController?.find(uuid: uuid)
       else { return }
 
     let progress = max(0, min(1, x / frame.width))
