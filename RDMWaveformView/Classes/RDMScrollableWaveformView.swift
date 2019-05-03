@@ -144,17 +144,6 @@ open class RDMScrollableWaveformView: UIView {
     return view
   }()
 
-  public lazy var addMarkerButton: UIButton = {
-    let button = UIButton(type: .custom)
-    addSubview(button)
-    button.setTitle("＋", for: .normal)
-    button.contentHorizontalAlignment = .center
-    button.contentVerticalAlignment = .bottom
-    button.setTitleColor(markersContainer.markerColor, for: .normal)
-    button.addTarget(self, action: #selector(addMarker), for: .touchUpInside)
-    return button
-  }()
-
   // MARK: - Subview on/off
 
   open var showMarker: Bool {
@@ -162,6 +151,14 @@ open class RDMScrollableWaveformView: UIView {
     set {
       markersContainer.isHidden = !newValue
       setNeedsLayout()
+    }
+  }
+
+  open var showAddMarkerButton: Bool {
+    get { return markersContainer.showAddMarkerButton }
+    set {
+      markersContainer.showAddMarkerButton = newValue
+      markersContainer.setNeedsLayout()
     }
   }
 
@@ -304,10 +301,6 @@ extension RDMScrollableWaveformView {
                                       y: 0,
                                       width: contentView.frame.width,
                                       height: markersContainer.markerTouchSize.height)
-      addMarkerButton.frame = CGRect(x: frame.midX - markersContainer.markerTouchSize.width / 2,
-                                     y: 0,
-                                     width: markersContainer.markerTouchSize.width,
-                                     height: markersContainer.markerTouchSize.height)
     }
 
     // Reorder subviews
@@ -315,7 +308,6 @@ extension RDMScrollableWaveformView {
     scrollView.sendSubviewToBack(contentBackgroundView)
     bringSubviewToFront(centerGuide)
     bringSubviewToFront(markersContainer)
-    bringSubviewToFront(addMarkerButton)
 
     // Advice subviews to render
 
@@ -389,7 +381,9 @@ extension RDMScrollableWaveformView: UIScrollViewDelegate {
     if showMarker {
       let dx = (contentView.frame.minX - scrollView.contentOffset.x) - markersContainer.frame.minX
       markersContainer.frame = markersContainer.frame.offsetBy(dx: dx, dy: 0)
-      markersContainer.contentOffsetDidChange(dx: scrollView.contentOffset.x - lastScrollContentOffset)
+      markersContainer.currentTime = controller?.currentTime ?? 0
+      markersContainer.contentOffset = scrollView.contentOffset.x
+      markersContainer.updateDraggingMarkerPosition(scrollDelta: scrollView.contentOffset.x - lastScrollContentOffset)
     }
 
     // contentView and guideView
@@ -420,19 +414,6 @@ extension RDMScrollableWaveformView: UIScrollViewDelegate {
     } else {
       return .none
     }
-  }
-}
-
-// MARK: - Marker management
-
-extension RDMScrollableWaveformView {
-  @objc private func addMarker() {
-    guard
-      let time = controller?.currentTime,
-      let markersController = markersController
-      else { return }
-    guard !markersController.markers.contains( where: { $0.time == time }) else { return }
-    markersController.add(at: time)
   }
 }
 

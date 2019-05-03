@@ -19,6 +19,9 @@ open class RDMWaveformMarkersContainer: UIView {
   open var markerLineWidth: CGFloat = 0.3
   open var markerLineHeight: CGFloat = 0
   open var draggable = true
+  open var showAddMarkerButton = false {
+    didSet { setNeedsLayout() }
+  }
 
   private var touchRect: CGRect {
     return CGRect(origin: CGPoint.zero, size: markerTouchSize)
@@ -30,10 +33,29 @@ open class RDMWaveformMarkersContainer: UIView {
                 dy: touchRect.height / 4)
   }
 
+  private lazy var addMarkerButton: UIButton = {
+    let button = UIButton(type: .custom)
+    addSubview(button)
+    button.setTitle("＋", for: .normal)
+    button.contentHorizontalAlignment = .center
+    button.contentVerticalAlignment = .bottom
+    button.setTitleColor(markerColor, for: .normal)
+    button.addTarget(self, action: #selector(addMarker), for: .touchUpInside)
+    button.isHidden = !showAddMarkerButton
+    return button
+  }()
+
   // MARK: audio property
 
   open var duration: TimeInterval = 0 {
     didSet { setNeedsLayout() }
+  }
+
+  // MARK: - support scrolling view
+
+  open var currentTime: TimeInterval = 0
+  open var contentOffset: CGFloat = 0 {
+    didSet { updateAddButtonPosition() }
   }
 
   // MARK: - Dragging a marker
@@ -112,6 +134,15 @@ extension RDMWaveformMarkersContainer {
         markerViews[markerView.uuid] = markerView
         markerView.setNeedsDisplay()
     }
+
+    if showAddMarkerButton {
+      addMarkerButton.frame = CGRect(x: frame.midX - markerTouchSize.width / 2,
+                                     y: 0,
+                                     width: markerTouchSize.width,
+                                     height: markerTouchSize.height)
+      updateAddButtonPosition()
+      sendSubviewToBack(addMarkerButton)
+    }
   }
 
   private func markerFrame(from marker: RDMWaveformMarker) -> CGRect {
@@ -180,6 +211,27 @@ extension RDMWaveformMarkersContainer: RDMWaveformMarkersControllerDelegate {
   }
 }
 
+// MARK: - support addMarkerButton
+
+extension RDMWaveformMarkersContainer {
+  private func updateAddButtonPosition() {
+    guard showAddMarkerButton else { return }
+    let frame = addMarkerButton.frame
+    addMarkerButton.frame = CGRect(x: contentOffset - frame.width / 2,
+                                   y: frame.minY,
+                                   width: frame.width,
+                                   height: frame.height)
+  }
+
+  @objc private func addMarker() {
+    guard
+      let markersController = markersController
+      else { return }
+    guard !markersController.markers.contains( where: { $0.time == currentTime }) else { return }
+    markersController.add(at: currentTime)
+  }
+}
+
 // MARK: - RDMWaveformMarkerViewDelegate
 
 extension RDMWaveformMarkersContainer: RDMWaveformMarkerViewDelegate {
@@ -200,7 +252,7 @@ extension RDMWaveformMarkersContainer: RDMWaveformMarkerViewDelegate {
     draggingMarker = nil
   }
 
-  public func contentOffsetDidChange(dx: CGFloat) {
+  public func updateDraggingMarkerPosition(scrollDelta dx: CGFloat) {
     guard
       draggable,
       let draggingMarker = draggingMarker
