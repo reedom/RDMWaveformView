@@ -62,7 +62,12 @@ extension RDMWaveformMarkersController {
   }
 
   func unsubscribe(_ delegate: RDMWaveformMarkersControllerDelegate) {
-    observers.remove(WeakDelegateRef(value: delegate))
+    while let index = observers.firstIndex(where: { (ref) -> Bool in
+      guard let val = ref.value else { return true }
+      return val.hash == delegate.hash
+    }) {
+      observers.remove(at: index)
+    }
   }
 }
 
