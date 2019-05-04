@@ -65,13 +65,14 @@ extension RDMWaveformMarkerView {
   }
 
   @objc private func handlePan(_ recognizer: UIPanGestureRecognizer) {
+    let point = recognizer.location(in: superview)
     switch recognizer.state {
     case .began:
-      delegate?.waveformMarkerView?(self, willBeginDrag: uuid, x: recognizer.location(in: superview).x)
+      delegate?.waveformMarkerView?(self, willBeginDrag: uuid, point: point)
     case .ended, .cancelled:
-      delegate?.waveformMarkerView?(self, didEndDrag: uuid, x: recognizer.location(in: superview).x)
+      delegate?.waveformMarkerView?(self, didEndDrag: uuid, point: point)
     case .changed:
-      delegate?.waveformMarkerView?(self, didDrag: uuid, x: recognizer.location(in: superview).x)
+      delegate?.waveformMarkerView?(self, didDrag: uuid, point: point)
     default:
       return
     }
@@ -107,7 +108,7 @@ extension RDMWaveformMarkerView {
 
 @objc public protocol RDMWaveformMarkerViewDelegate: NSObjectProtocol {
   @objc optional func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, didTap uuid: String)
-  @objc optional func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, willBeginDrag uuid: String, x: CGFloat)
-  @objc optional func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, didDrag uuid: String, x: CGFloat)
-  @objc optional func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, didEndDrag uuid: String, x: CGFloat)
+  @objc optional func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, willBeginDrag uuid: String, point: CGPoint)
+  @objc optional func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, didDrag uuid: String, point: CGPoint)
+  @objc optional func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, didEndDrag uuid: String, point: CGPoint)
 }

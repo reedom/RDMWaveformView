@@ -269,27 +269,39 @@ extension RDMWaveformMarkersContainer: RDMWaveformMarkerViewDelegate {
 
   }
 
-  public func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, willBeginDrag uuid: String, x: CGFloat) {
+  public func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, willBeginDrag uuid: String, point: CGPoint) {
     guard draggable else { return }
     if let marker = markersController?.find(uuid: uuid) {
-      draggingMarker = DraggingMarker(uuid: uuid, x: x)
+      draggingMarker = DraggingMarker(uuid: uuid, x: point.x)
       markersController?.beginDrag(marker)
     }
   }
 
-  public func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, didDrag uuid: String, x: CGFloat) {
+  public func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, didDrag uuid: String, point: CGPoint) {
     guard draggable else { return }
     if draggingMarker != nil {
-      draggingMarker = DraggingMarker(uuid: uuid, x: x)
+      draggingMarker = DraggingMarker(uuid: uuid, x: point.x)
     }
-    updateMakerTime(uuid, x)
+
+    // If the user drags the marker far above this view, prepare for removing the marker.
+    if let markerView = markerViews[uuid] {
+      markerView.layer.opacity = (0 <= point.y) ? 1 : 0
+    }
+
+    updateMakerTime(uuid, point.x)
   }
 
-  public func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, didEndDrag uuid: String, x: CGFloat) {
+  public func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, didEndDrag uuid: String, point: CGPoint) {
     guard draggable else { return }
     draggingMarker = nil
     if let marker = markersController?.find(uuid: uuid) {
       markersController?.endDrag(marker)
+    }
+
+    // Remove the marker If the user drops the marker far above this view.
+    if point.y < 0 {
+      guard let marker = markersController?.find(uuid: uuid) else { return }
+      markersController?.remove(marker)
     }
   }
 
