@@ -279,6 +279,7 @@ extension RDMWaveformMarkersContainer: RDMWaveformMarkerViewDelegate {
 
   public func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, didDrag uuid: String, x: CGFloat) {
     guard draggable else { return }
+    draggingMarker = DraggingMarker(uuid: uuid, x: x)
     updateMakerTime(uuid, x)
   }
 
