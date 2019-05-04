@@ -8,6 +8,8 @@
 import UIKit
 
 open class RDMWaveformMarkerView: UIView {
+  // MARK: - Properties
+
   public let uuid: String
   public let touchRect: CGRect
   public let markerColor: UIColor
@@ -17,7 +19,7 @@ open class RDMWaveformMarkerView: UIView {
 
   public weak var delegate: RDMWaveformMarkerViewDelegate?
 
-  private var touchView: UIView!
+  // MARK: - Initialization
 
   public required init?(coder aDecoder: NSCoder) {
     fatalError("call RDMWaveformMarkerView(uuid, position) instead.")
@@ -44,7 +46,7 @@ open class RDMWaveformMarkerView: UIView {
     backgroundColor = UIColor.transparent
     contentMode = .redraw
 
-    touchView = UIView(frame: touchRect)
+    let touchView = UIView(frame: touchRect)
     addSubview(touchView)
     touchView.backgroundColor = UIColor.transparent
 
@@ -53,7 +55,11 @@ open class RDMWaveformMarkerView: UIView {
     let panGesture = UIPanGestureRecognizer(target: self, action: #selector(handlePan))
     touchView.addGestureRecognizer(panGesture)
   }
+}
 
+// MARK: - UI event handlers
+
+extension RDMWaveformMarkerView {
   @objc private func handleTap(_ recognizer: UITapGestureRecognizer) {
     delegate?.waveformMarkerView?(self, didTap: uuid)
   }
@@ -61,16 +67,20 @@ open class RDMWaveformMarkerView: UIView {
   @objc private func handlePan(_ recognizer: UIPanGestureRecognizer) {
     switch recognizer.state {
     case .began:
-      delegate?.waveformMarkerView?(self, willBeginDrag: uuid)
+      delegate?.waveformMarkerView?(self, willBeginDrag: uuid, x: recognizer.location(in: superview).x)
     case .ended, .cancelled:
-      delegate?.waveformMarkerView?(self, didEndDrag: uuid)
+      delegate?.waveformMarkerView?(self, didEndDrag: uuid, x: recognizer.location(in: superview).x)
     case .changed:
       delegate?.waveformMarkerView?(self, didDrag: uuid, x: recognizer.location(in: superview).x)
     default:
       return
     }
   }
+}
 
+// MARK: - drawing
+
+extension RDMWaveformMarkerView {
   override open func draw(_ rect: CGRect) {
     guard let context = UIGraphicsGetCurrentContext() else {
       NSLog("RDMCenterGuide failed to get graphics context")
@@ -97,7 +107,7 @@ open class RDMWaveformMarkerView: UIView {
 
 @objc public protocol RDMWaveformMarkerViewDelegate: NSObjectProtocol {
   @objc optional func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, didTap uuid: String)
-  @objc optional func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, willBeginDrag uuid: String)
+  @objc optional func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, willBeginDrag uuid: String, x: CGFloat)
   @objc optional func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, didDrag uuid: String, x: CGFloat)
-  @objc optional func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, didEndDrag uuid: String)
+  @objc optional func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, didEndDrag uuid: String, x: CGFloat)
 }

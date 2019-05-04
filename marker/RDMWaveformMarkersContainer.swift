@@ -12,66 +12,31 @@ open class RDMWaveformMarkersContainer: UIView {
 
   // MARK: - Maker properties
 
+  /// The size of invisible UI responsive area where the user taps and drags.
+  /// The size also affects the height of `RDMWaveformMarkersContainer`
   open var markerTouchSize = CGSize(width: 46, height: 46)
+  /// The size of a marker's visual representation triangle.
   open var markerSize = CGSize(width: 8, height: 12)
+  /// The color of a marker's triangle.
   open var markerColor = defaultMarkerColor
+  /// The color of a marker's vertical line.
   open var markerLineColor = defaultMarkerColor
+  /// The width of a marker's vertical line.
   open var markerLineWidth: CGFloat = 0.3
+  /// The height of a marker's vertical line.
   open var markerLineHeight: CGFloat = 0
+  /// Indicates whether the user can move a marker by dragging.
   open var draggable = true
+  /// Indicates whether `RDMWaveformMarkersContainer` shows `+` button that
+  /// enables the user to add a marker by tapping it.
   open var showAddMarkerButton = false {
     didSet { setNeedsLayout() }
   }
 
-  private var touchRect: CGRect {
-    return CGRect(origin: CGPoint.zero, size: markerTouchSize)
-  }
-
-  private var markerRect: CGRect {
-    return CGRect(origin: CGPoint.zero, size: markerSize)
-      .offsetBy(dx: (touchRect.maxX - markerSize.width) / 2,
-                dy: touchRect.height / 4)
-  }
-
-  private lazy var addMarkerButton: UIButton = {
-    let button = UIButton(type: .custom)
-    addSubview(button)
-    button.setTitle("＋", for: .normal)
-    button.contentHorizontalAlignment = .center
-    button.contentVerticalAlignment = .bottom
-    button.setTitleColor(markerColor, for: .normal)
-    button.addTarget(self, action: #selector(addMarker), for: .touchUpInside)
-    button.isHidden = !showAddMarkerButton
-    return button
-  }()
-
-  // MARK: audio property
-
-  open var duration: TimeInterval = 0 {
-    didSet { setNeedsLayout() }
-  }
-
-  // MARK: - support scrolling view
-
-  open var currentTime: TimeInterval = 0
-  open var contentOffset: CGFloat = 0 {
-    didSet { updateAddButtonPosition() }
-  }
-
-  // MARK: - Dragging a marker
-
-  private struct DraggingMarker {
-    let uuid: String
-    let x: CGFloat
-
-    func copy(with x: CGFloat) -> DraggingMarker {
-      return DraggingMarker(uuid: uuid, x: x)
-    }
-  }
-  private var draggingMarker: DraggingMarker?
-
-  // MARK: - Marker
-
+  /// `RDMWaveformMarkersController` instance.
+  ///
+  /// One or more views can share the same instance so that all the views
+  /// can render and take effect its markers.
   open var markersController: RDMWaveformMarkersController? {
     willSet {
       markersController?.unsubscribe(self)
@@ -83,7 +48,67 @@ open class RDMWaveformMarkersContainer: UIView {
     }
   }
 
+  // MARK: - Properties to work with `RDMScrollableWaveformView`
+
+  /// The current value of `RDMScrollableWaveformView.contentOffset.x`.
+  open var contentOffset: CGFloat = 0 {
+    didSet { updateAddButtonPosition() }
+  }
+  /// Total duration of the current track.
+  open var duration: TimeInterval = 0 {
+    didSet { setNeedsLayout() }
+  }
+  /// The current time that `RDMWaveformMarkersController` focuses at.
+  open var currentTime: TimeInterval = 0
+
+  // MARK: - Properties to support marker dragging
+
+  /// A type that represents the current dragging target.
+  private struct DraggingMarker {
+    let uuid: String
+    let x: CGFloat
+
+    func copy(with x: CGFloat) -> DraggingMarker {
+      return DraggingMarker(uuid: uuid, x: x)
+    }
+  }
+  /// The current dragging target.
+  private var draggingMarker: DraggingMarker?
+
+  // MARK: - Marker
+
+  /// A collection of `RDMWaveformMarkerView`, each of them is a
+  /// visual representation of a `RDMWaveformMarker`.
   private var markerViews = [String: RDMWaveformMarkerView]()
+
+  // MARK: - Private properties
+
+  /// Calculates the rectangle of an entire marker.
+  private var markerRect: CGRect {
+    return CGRect(origin: CGPoint.zero, size: markerSize)
+      .offsetBy(dx: (touchRect.maxX - markerSize.width) / 2,
+                dy: touchRect.height / 4)
+  }
+
+  /// Calculates the rectangle of a marker's touching area.
+  private var touchRect: CGRect {
+    return CGRect(origin: CGPoint.zero, size: markerTouchSize)
+  }
+
+  // MARK: - Subview
+
+  /// `+` button
+  private lazy var addMarkerButton: UIButton = {
+    let button = UIButton(type: .custom)
+    addSubview(button)
+    button.setTitle("＋", for: .normal)
+    button.contentHorizontalAlignment = .center
+    button.contentVerticalAlignment = .bottom
+    button.setTitleColor(markerColor, for: .normal)
+    button.addTarget(self, action: #selector(addMarker), for: .touchUpInside)
+    button.isHidden = !showAddMarkerButton
+    return button
+  }()
 
   // MARK: - Initialization
 
@@ -145,6 +170,7 @@ extension RDMWaveformMarkersContainer {
     }
   }
 
+  /// Calculates the actual rectangle of a marker.
   private func markerFrame(from marker: RDMWaveformMarker) -> CGRect {
     guard 0 < bounds.width, 0 < duration else { return CGRect.zero }
 
@@ -155,6 +181,7 @@ extension RDMWaveformMarkersContainer {
                   height: markerLineHeight)
   }
 
+  /// Creates and adds specifiec number of `RDMWaveformMarkerView` for their conterparts.
   private func addMarkerViews(markers: [RDMWaveformMarker]) {
     markers.forEach({ (marker) in
       guard markerViews[marker.uuid] == nil else {
@@ -175,6 +202,7 @@ extension RDMWaveformMarkersContainer {
     })
   }
 
+  /// Updates a `RDMWaveformMarker`'s position.
   private func updateMarkerView(marker: RDMWaveformMarker) {
     guard let markerView = markerViews[marker.uuid] else {
       debugPrint("RDMWaveformMarkersContainer.updateMarkerView: markerView not found")
@@ -184,6 +212,9 @@ extension RDMWaveformMarkersContainer {
     markerView.frame = markerFrame(from: marker)
   }
 
+  /// Removes a `RDMWaveformMarker`.
+  ///
+  /// - Parameter marker: a marker to be removed.
   private func removeMarkerView(marker: RDMWaveformMarker) {
     guard let markerView = markerViews.removeValue(forKey: marker.uuid) else {
       debugPrint("RDMWaveformMarkersContainer.removeMarkerView: markerView not found")
@@ -194,16 +225,15 @@ extension RDMWaveformMarkersContainer {
   }
 }
 
+// MARK: - `RDMWaveformMarkersControllerDelegate`
+
 extension RDMWaveformMarkersContainer: RDMWaveformMarkersControllerDelegate {
   public func waveformMarkersController(_ controller: RDMWaveformMarkersController, didAdd marker: RDMWaveformMarker) {
     addMarkerViews(markers: [marker])
   }
 
-  public func waveformMarkersController(_ controller: RDMWaveformMarkersController, didUpdatePosition marker: RDMWaveformMarker) {
+  public func waveformMarkersController(_ controller: RDMWaveformMarkersController, didUpdateTime marker: RDMWaveformMarker) {
     updateMarkerView(marker: marker)
-  }
-
-  public func waveformMarkersController(_ controller: RDMWaveformMarkersController, didUpdateData marker: RDMWaveformMarker) {
   }
 
   public func waveformMarkersController(_ controller: RDMWaveformMarkersController, didRemove marker: RDMWaveformMarker) {
@@ -239,17 +269,25 @@ extension RDMWaveformMarkersContainer: RDMWaveformMarkerViewDelegate {
 
   }
 
-  public func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, willBeginDrag uuid: String) {
+  public func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, willBeginDrag uuid: String, x: CGFloat) {
+    guard draggable else { return }
+    if let marker = markersController?.find(uuid: uuid) {
+      draggingMarker = DraggingMarker(uuid: uuid, x: x)
+      markersController?.beginDrag(marker)
+    }
   }
 
   public func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, didDrag uuid: String, x: CGFloat) {
     guard draggable else { return }
-    draggingMarker = DraggingMarker(uuid: uuid, x: x)
     updateMakerTime(uuid, x)
   }
 
-  public func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, didEndDrag uuid: String) {
+  public func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, didEndDrag uuid: String, x: CGFloat) {
+    guard draggable else { return }
     draggingMarker = nil
+    if let marker = markersController?.find(uuid: uuid) {
+      markersController?.endDrag(marker)
+    }
   }
 
   public func updateDraggingMarkerPosition(scrollDelta dx: CGFloat) {

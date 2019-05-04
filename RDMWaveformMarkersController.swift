@@ -5,15 +5,34 @@
 //  Created by HANAI Tohru on 2019/05/01.
 //
 
+/// `RDMWaveformMarkersController` holds a number of `RDMWaveformMarker` instances
+/// and is responsible to find and update any of them and also it notifies any
+/// actions upon the markers.
 open class RDMWaveformMarkersController: NSObject {
+  /// MARK: - Properties
+
+  /// The delegate of this object.
   open weak var delegate: RDMWaveformMarkersControllerDelegate?
+
+  /// A list of `RDMWaveformMarkersControllerDelegate`.
+  ///
+  /// The observers will be notified as same as the `delegate`.
+  /// The only difference is that `observers` is only available for internal classes
+  /// in this package.
   private var observers = Set<WeakDelegateRef<RDMWaveformMarkersControllerDelegate>>()
 
+  /// A collection of `RDMWaveformMarker`.
   private var _markers = RDMWaveformMarkers()
+  /// An iterator of the `RDMWaveformMarker` collection.
+  /// The collection is sorted by `RDMWaveformMarker.time` ascending order.
   public var markers: IndexingIterator<[RDMWaveformMarker]> {
     return _markers.makeIterator()
   }
+  /// Indicates whether the user is dragging a marker.
+  public private(set) var dragging: Bool = false
 }
+
+/// MARK: - Updating markers
 
 extension RDMWaveformMarkersController {
   @discardableResult open func add(_ marker: RDMWaveformMarker) -> Bool {
@@ -49,26 +68,46 @@ extension RDMWaveformMarkersController {
   }
 }
 
+/// MARK: - Finding markers
+
 extension RDMWaveformMarkersController {
+  /// Find a maker by `uuid`.
   open func find(uuid: String) -> RDMWaveformMarker? {
     return _markers.find(uuid: uuid)
   }
 
+  /// Look up any marker that places right before `time`.
   open func findBefore(_ time: TimeInterval) -> RDMWaveformMarker? {
     return _markers.findBefore(time)
   }
 
+  /// Look up any marker that places right after `time`.
   open func findAfter(_ time: TimeInterval) -> RDMWaveformMarker? {
     return _markers.findAfter(time)
   }
 }
 
+/// MARK: - Dragging support
+extension RDMWaveformMarkersController {
+  func beginDrag(_ marker: RDMWaveformMarker) {
+    dragging = true
+    delegate?.waveformMarkersController?(self, willBeginDrag: marker)
+  }
+
+  func endDrag(_ marker: RDMWaveformMarker) {
+    dragging = false
+    delegate?.waveformMarkersController?(self, didEndDrag: marker)
+  }
+}
+
+/// MARK: - RDMWaveformMarkerDelegate
+
 extension RDMWaveformMarkersController: RDMWaveformMarkerDelegate {
   func markerDidUpdateTime(_ marker: RDMWaveformMarker) {
     _markers.updateOrderIfNeeded(updated: marker)
 
-    observers.forEach({ $0.value?.waveformMarkersController?(self, didUpdatePosition: marker)})
-    delegate?.waveformMarkersController?(self, didUpdatePosition: marker)
+    observers.forEach({ $0.value?.waveformMarkersController?(self, didUpdateTime: marker)})
+    delegate?.waveformMarkersController?(self, didUpdateTime: marker)
   }
 
   func markerDidUpdateData(_ marker: RDMWaveformMarker) {
@@ -92,13 +131,45 @@ extension RDMWaveformMarkersController {
   }
 }
 
+/// MARK: - RDMWaveformMarkersControllerDelegate definition
+
 @objc public protocol RDMWaveformMarkersControllerDelegate: NSObjectProtocol {
+  /// Tells the delegate when a new marker is added to the controller.
+  ///
+  /// - Parameter controller: The event source.
+  /// - Parameter marker: The subject.
   @objc optional func waveformMarkersController(_ controller: RDMWaveformMarkersController, didAdd marker: RDMWaveformMarker)
-  @objc optional func waveformMarkersController(_ controller: RDMWaveformMarkersController, didUpdatePosition marker: RDMWaveformMarker)
+  /// Tells the delegate when the user starts dragging a marker.
+  ///
+  /// - Parameter controller: The event source.
+  /// - Parameter marker: The subject.
+  @objc optional func waveformMarkersController(_ controller: RDMWaveformMarkersController, willBeginDrag marker: RDMWaveformMarker)
+  /// Tells the delegate when dragging ends.
+  ///
+  /// - Parameter controller: The event source.
+  /// - Parameter marker: The subject.
+  @objc optional func waveformMarkersController(_ controller: RDMWaveformMarkersController, didEndDrag marker: RDMWaveformMarker)
+  /// Tells the delegate when the user changed the time of a marker, by dragging or tapping.
+  ///
+  /// - Parameter controller: The event source.
+  /// - Parameter marker: The subject.
+  @objc optional func waveformMarkersController(_ controller: RDMWaveformMarkersController, didUpdateTime marker: RDMWaveformMarker)
+  /// Tells the delegate when the user changed `RDMWaveformMarker.data`
+  ///
+  /// - Parameter controller: The event source.
+  /// - Parameter marker: The subject.
   @objc optional func waveformMarkersController(_ controller: RDMWaveformMarkersController, didUpdateData marker: RDMWaveformMarker)
+  /// Tells the delegate when the user removed a `RDMWaveformMarker`
+  ///
+  /// - Parameter controller: The event source.
+  /// - Parameter marker: The subject.
   @objc optional func waveformMarkersController(_ controller: RDMWaveformMarkersController, didRemove marker: RDMWaveformMarker)
 }
 
+/// MARK: - RDMWaveformMarkers
+
+/// `RDMWaveformMarkers` holds a collection of `RDMWaveformMarker`, sorted by
+/// `RDMWaveformMarker.time` ascending order.
 private class RDMWaveformMarkers {
   private var markers = [RDMWaveformMarker]()
 
