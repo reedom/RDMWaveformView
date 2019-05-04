@@ -132,6 +132,7 @@ final public class RDMAudioLoadOperation: Operation {
     var downsampleIndex = 0
     var lastSample: CGFloat?
     while reader.status == .reading {
+      print("load")
       guard !isCancelled else { return }
 
       guard
