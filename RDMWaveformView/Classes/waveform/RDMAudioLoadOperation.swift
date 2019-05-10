@@ -15,28 +15,33 @@ final public class RDMAudioLoadOperation: Operation {
     case cancelled
   }
 
-  /// Current audio context to be used for rendering
+  /// Holds audio information used for building waveforms.
   public let audioContext: RDMAudioContext
-  public let samplesRange: CountableRange<Int>
+  /// Range of time in seconds.
+  /// `RDMAudioLoadOperation` loads and downsamples only the specified range.
+  public let timeRange: TimeRange
+  /// Downsample rate.
+  /// `RDMAudioLoadOperation` uses the specified number of samples to generate
+  /// a downsampled value.
   public let downsampleRate: Int
+  /// Maximum decibel.
+  /// `RDMAudioLoadOperation` may update this value if it finds higher value.
+  public private(set) var decibelMax: CGFloat
+  /// Minimum decibel.
+  /// For samples below the value `RDMAudioLoadOperation` determins as "silent".
   public let decibelMin: CGFloat
-  public var decibelMax: CGFloat
+  /// Operation state.
+  public private(set) var state: OperationState = .idle
 
   // MARK: - NSOperation Overrides
 
   public override var isAsynchronous: Bool { return true }
-
-  private var _state = OperationState.idle
-  public var state: OperationState {
-    get { return _state }
-  }
-
-  public override var isExecuting: Bool { return _state == .executing }
-  public override var isFinished: Bool { return _state == .finished }
+  public override var isExecuting: Bool { return state == .executing }
+  public override var isFinished: Bool { return state == .finished }
 
   public typealias Callback = (
     _ operation: RDMAudioLoadOperation,
-    _ chunkRange: CountableRange<Int>,
+    _ downsampleRange: DownsampleRange,
     _ downsamples: [CGFloat]?) -> Void
 
   // MARK: - Private
@@ -44,17 +49,16 @@ final public class RDMAudioLoadOperation: Operation {
   ///  Handler called when the rendering has completed. nil UIImage indicates that there was an error during processing.
   private let callback: Callback
 
-  /// Final rendered image. Used to hold image for completionHandler.
-  private var downsamples: [CGFloat]?
+  /// MARK: - Initialization
 
   init(audioContext: RDMAudioContext,
-       samplesRange: CountableRange<Int>,
+       timeRange: TimeRange,
        downsampleRate: Int,
-       decibelMin: CGFloat,
        decibelMax: CGFloat,
+       decibelMin: CGFloat,
        callback: @escaping Callback) {
     self.audioContext = audioContext
-    self.samplesRange = samplesRange
+    self.timeRange = timeRange
     self.downsampleRate = downsampleRate
     self.decibelMin = decibelMin
     self.decibelMax = decibelMax
@@ -63,11 +67,13 @@ final public class RDMAudioLoadOperation: Operation {
     super.init()
   }
 
+  /// MARK: - Operation
+
   public override func start() {
-    guard _state == .idle else { return }
+    guard state == .idle else { return }
 
     willChangeValue(forKey: "isExecuting")
-    _state = .executing
+    state = .executing
     didChangeValue(forKey: "isExecuting")
 
     if #available(iOS 8.0, *) {
@@ -84,12 +90,12 @@ final public class RDMAudioLoadOperation: Operation {
   }
 
   private func finish() {
-    guard _state == .executing else { return }
+    guard state == .executing else { return }
 
     // completionBlock called automatically by NSOperation after these values change
     willChangeValue(forKey: "isExecuting")
     willChangeValue(forKey: "isFinished")
-    _state = .finished
+    state = .finished
     didChangeValue(forKey: "isExecuting")
     didChangeValue(forKey: "isFinished")
   }
@@ -98,14 +104,48 @@ final public class RDMAudioLoadOperation: Operation {
   private func process() {
     guard
       !isCancelled,
-      !samplesRange.isEmpty,
+      !timeRange.isEmpty,
+      0 < downsampleRate
+      else { return }
+
+    print("from: \(CMTimeMakeWithSeconds(Float64(timeRange.lowerBound), preferredTimescale: 1000).seconds)")
+    print("duration: \(CMTimeMakeWithSeconds(Float64(timeRange.count), preferredTimescale: 1000).seconds)")
+    let duration = CMTimeRange(start: CMTimeMakeWithSeconds(Float64(timeRange.lowerBound), preferredTimescale: 1000),
+                               duration: CMTimeMakeWithSeconds(Float64(timeRange.count), preferredTimescale: 1000))
+
+    print("dur: \(duration.duration.seconds)")
+    let downsampleUnit = audioContext.channelCount * downsampleRate
+    let readUnit = downsampleUnit * MemoryLayout<Int16>.size
+    let filter = [Float](repeating: 1.0 / Float(downsampleUnit), count: downsampleUnit)
+
+    var total: Int = 0
+    let calc = RDMAudioDownsampleCalc(audioContext, downsampleRate)
+    var downsampleIndex = calc.downsampleRangeFrom(timeRange: timeRange).lowerBound
+    readSamples(duration, readUnit) { (sampleBuffer) in
+      total += sampleBuffer.count / audioContext.channelCount
+      print("total: \(total)")
+      let downsampleCount = (readUnit <= sampleBuffer.count) ? sampleBuffer.count / readUnit : 1
+      let downsampleRate  = (readUnit <= sampleBuffer.count) ? downsampleUnit : sampleBuffer.count / MemoryLayout<Int16>.size
+      let downsamples = downsample(fromData: sampleBuffer,
+                                   downsampleCount: downsampleCount,
+                                   downsampleRate: downsampleRate,
+                                   filter: filter)
+      let downsampleRange = downsampleIndex ..< downsampleIndex + downsamples.count
+      callback(self, downsampleRange, downsamples)
+      downsampleIndex += downsamples.count
+      guard !isCancelled else { return }
+    }
+  }
+
+  private func readSamples(_ duration: CMTimeRange,
+                           _ readUnit: Int,
+                           onRead: (_ sampleBuffer: Data) -> Void) {
+    guard
+      !timeRange.isEmpty,
       0 < downsampleRate,
       let reader = try? AVAssetReader(asset: audioContext.asset)
-    else { return }
+      else { return }
 
-    let duration = audioContext.asset.duration
-    reader.timeRange = CMTimeRange(start: CMTime(value: Int64(samplesRange.lowerBound), timescale: duration.timescale),
-                                   duration: CMTime(value: Int64(samplesRange.count), timescale: duration.timescale))
     let outputSettingsDict: [String : Any] = [
       AVFormatIDKey: Int(kAudioFormatLinearPCM),
       AVLinearPCMBitDepthKey: 16,
@@ -118,22 +158,16 @@ final public class RDMAudioLoadOperation: Operation {
     readerOutput.alwaysCopiesSampleData = false
     reader.add(readerOutput)
 
-    let sampleCountInUnit = audioContext.channelCount * downsampleRate
-    let filter = [Float](repeating: 1.0 / Float(sampleCountInUnit), count: sampleCountInUnit)
-
-    var outputSamples = [CGFloat]()
-    var sampleBuffer = Data()
-    var position = samplesRange.lowerBound
-
     // 16-bit samples
+    reader.timeRange = duration
     reader.startReading()
     defer { reader.cancelReading() } // Cancel reading if we exit early if operation is cancelled
 
-    var downsampleIndex = 0
-    var lastSample: CGFloat?
+    // FIXME: the current usage of sampleBuffer makes a lot of memory allocation.
+    var sampleBuffer = Data()
+    var remainBytes = Int(ceil(duration.duration.seconds * Double(audioContext.sampleRate))) * audioContext.channelCount * MemoryLayout<Int16>.size
     while reader.status == .reading {
-      print("load")
-      guard !isCancelled else { return }
+      guard !isCancelled, 0 < remainBytes else { return }
 
       guard
         let readSampleBuffer = readerOutput.copyNextSampleBuffer(),
@@ -148,30 +182,21 @@ final public class RDMAudioLoadOperation: Operation {
                                   lengthAtOffsetOut: &readBufferLength,
                                   totalLengthOut: nil,
                                   dataPointerOut: &readBufferPointer)
-      sampleBuffer.append(UnsafeBufferPointer(start: readBufferPointer, count: readBufferLength))
+      let appendLength = min(readBufferLength, remainBytes)
+      remainBytes -= appendLength
+      sampleBuffer.append(UnsafeBufferPointer(start: readBufferPointer, count: appendLength))
       CMSampleBufferInvalidate(readSampleBuffer)
 
-      let samplesCount = sampleBuffer.count / MemoryLayout<Int16>.size
-      let downsampleCount = samplesCount / sampleCountInUnit
+      guard readUnit < sampleBuffer.count else { continue }
 
-      guard 0 < samplesCount else { continue }
-
-      let downsamples = downsample(fromData: &sampleBuffer,
-                                   samplesCount: samplesCount,
-                                   downsampleCount: downsampleCount,
-                                   downsampleRate: sampleCountInUnit,
-                                   filter: filter)
-      let chunkFrom = samplesRange.lowerBound + (downsampleIndex * downsampleRate)
-      let chunkTo = samplesRange.lowerBound + ((downsampleIndex + downsampleCount)  * downsampleRate)
-      self.callback(self, chunkFrom ..< chunkTo, downsamples)
-      downsampleIndex += downsampleCount
-      lastSample = downsamples.last
+      let availableUnits = sampleBuffer.count / readUnit
+      let effectiveLength = availableUnits * readUnit
+      onRead(sampleBuffer[sampleBuffer.startIndex ..< sampleBuffer.startIndex + effectiveLength])
+      sampleBuffer.removeFirst(effectiveLength)
     }
-    guard !isCancelled else { return }
 
-    if 0 < sampleBuffer.count, let lastSample = lastSample {
-      let chunkFrom = samplesRange.lowerBound + (downsampleIndex * downsampleRate)
-      self.callback(self, chunkFrom ..< samplesRange.upperBound, [lastSample])
+    if 0 < sampleBuffer.count {
+      onRead(sampleBuffer)
     }
 
     // if (reader.status == AVAssetReaderStatusFailed || reader.status == AVAssetReaderStatusUnknown)
@@ -181,31 +206,30 @@ final public class RDMAudioLoadOperation: Operation {
     }
   }
 
-  private func downsample(fromData sampleBuffer: inout Data,
-                          samplesCount: Int,
+  private func downsample(fromData sampleBuffer: Data,
                           downsampleCount: Int,
                           downsampleRate: Int,
                           filter: [Float]) -> [CGFloat] {
-    var result = [CGFloat]()
     let samples = sampleBuffer.withUnsafeBytes {
       $0.baseAddress!.assumingMemoryBound(to: Int16.self)
     }
-    var processingBuffer = [Float](repeating: 0.0, count: samplesCount)
+    let sampleCount = sampleBuffer.count / MemoryLayout<Int16>.size
+    var processingBuffer = [Float](repeating: 0.0, count: sampleCount)
 
     // Convert 16bit int samples to floats
-    vDSP_vflt16(samples, 1, &processingBuffer, 1, vDSP_Length(samplesCount))
+    vDSP_vflt16(samples, 1, &processingBuffer, 1, vDSP_Length(sampleCount))
 
     // Take the absolute values to get amplitude
-    vDSP_vabs(processingBuffer, 1, &processingBuffer, 1, vDSP_Length(samplesCount))
+    vDSP_vabs(processingBuffer, 1, &processingBuffer, 1, vDSP_Length(sampleCount))
 
     // Convert samples to a log scale
     var zero: Float = 32768.0
-    vDSP_vdbcon(processingBuffer, 1, &zero, &processingBuffer, 1, vDSP_Length(processingBuffer.count), 1)
+    vDSP_vdbcon(processingBuffer, 1, &zero, &processingBuffer, 1, vDSP_Length(sampleCount), 1)
 
     // Clip to [noiseFloor, 0]
     var ceil: Float = 0.0
     var noiseFloorFloat = Float(decibelMin)
-    vDSP_vclip(processingBuffer, 1, &noiseFloorFloat, &ceil, &processingBuffer, 1, vDSP_Length(processingBuffer.count))
+    vDSP_vclip(processingBuffer, 1, &noiseFloorFloat, &ceil, &processingBuffer, 1, vDSP_Length(sampleCount))
 
     // Downsample and average
     var downsampledData = [Float](repeating: 0.0, count: downsampleCount)
@@ -216,16 +240,13 @@ final public class RDMAudioLoadOperation: Operation {
                 vDSP_Length(downsampleCount),
                 vDSP_Length(downsampleRate))
 
-    result = downsampledData.map { (value: Float) -> CGFloat in
+    let result = downsampledData.map { (value: Float) -> CGFloat in
       let element = CGFloat(value)
       if decibelMax < element {
         decibelMax = element
       }
       return element
     }
-
-    // Remove processed samples
-    sampleBuffer.removeFirst(min(sampleBuffer.count, downsampleRate * downsampleCount * MemoryLayout<Int16>.size))
 
     return result
   }

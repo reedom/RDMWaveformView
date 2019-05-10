@@ -39,11 +39,7 @@ open class RDMScrollableWaveformView: UIView {
 
   // MARK: - Properties
 
-  open var preloadIfTrackShorterThan: TimeInterval {
-    get { return contentView.preloadIfTrackShorterThan }
-    set { contentView.preloadIfTrackShorterThan = newValue }
-  }
-
+  /// `RDMWaveformController` holds `audioContenxt` and `currentTime`.
   open var controller: RDMWaveformController? {
     willSet {
       controller?.unsubscribe(self)
@@ -54,95 +50,63 @@ open class RDMScrollableWaveformView: UIView {
     }
   }
 
+  /// `RDMWaveformMarkersController` manages markers.
   public var markersController: RDMWaveformMarkersController? {
     get { return markersContainer.markersController }
     set { markersContainer.markersController = newValue }
   }
 
+  /// If the audio track duration is shorter than this value,
+  /// the `RDMAudioDownsampler` will automatically downsample
+  /// entire track.
+  private var _preloadIfTrackShorterThan: TimeInterval = 5*60
+  open var preloadIfTrackShorterThan: TimeInterval {
+    get { return _preloadIfTrackShorterThan }
+    set {
+      _preloadIfTrackShorterThan = newValue
+      downsampler?.preloadIfTrackShorterThan = newValue
+    }
+  }
+
+  /// Maximum decibel in a audio track.
+  public var decibelMin: CGFloat = -50
+  /// Minimum decibel in a audio track.
+  public var decibelMax: CGFloat = -10
+
   // MARK: - Appearance properties
 
+  /// The color of the waveform's lines.
+  public var waveformLineColor: UIColor = UIColor(red: 255/255, green: 255/255, blue: 255/255, alpha: 1)
+
+  /// The background color of the waveform area.
   public var waveformBackgroundColor = UIColor(red: 26/255, green: 25/255, blue: 31/255, alpha: 1) {
     didSet {
       contentView.backgroundColor = waveformBackgroundColor
     }
   }
 
+  /// The color of the margin areas.
   public var marginBackgroundColor = UIColor(red: 18/255, green: 18/255, blue: 20/255, alpha: 1) {
     didSet {
       scrollView.backgroundColor = marginBackgroundColor
     }
   }
 
+  /// The placement of the mesurement origin.
+  /// In other words, where the user see the current mesurement time.
   public var waveformContentAlignment = WaveformAlignment.center {
     didSet {
       setNeedsLayout()
     }
   }
 
-  public var waveformRenderOptions = WaveformRenderOptions(widthPerSecond: 100, linesPerSecond: 25, lineWidth: 1) {
-    didSet {
-      contentView.resolution = resolution
-    }
-  }
+  public var waveformRenderOptions = WaveformRenderOptions(widthPerSecond: 100, linesPerSecond: 25, lineWidth: 1)
 
   private var resolution: RDMWaveformResolution {
     return .perSecond(width: waveformRenderOptions.widthPerSecond,
                       lines: waveformRenderOptions.linesPerSecond,
                       lineWidth: waveformRenderOptions.lineWidth)
   }
-
-  /// MARK: - Subviews
-
-  /// `scrollView` contains `contentView` and `guageView`.
-  open lazy var scrollView: UIScrollView = {
-    let scrollView = RDMWaveformScrollView(frame: bounds)
-    scrollView.backgroundColor = UIColor.transparent
-    scrollView.showsVerticalScrollIndicator = false
-    scrollView.showsHorizontalScrollIndicator = false
-    addSubview(scrollView)
-    scrollView.delegate = self
-    return scrollView
-  }()
-
-  /// `contentView` renders a waveform.
-  public lazy var contentView: RDMWaveformContentView = {
-    let contentView = RDMWaveformContentView()
-    contentView.resolution = resolution
-    contentView.backgroundColor = waveformBackgroundColor
-    contentView.contentMode = .redraw
-    scrollView.addSubview(contentView)
-    return contentView
-  }()
-
-  /// `contentBackgroundView` renders `marginBackgroundColor`
-  public lazy var contentBackgroundView: UIView = {
-    let view = UIView()
-    view.backgroundColor = marginBackgroundColor
-    scrollView.addSubview(view)
-    return view
-  }()
-
-  /// `guageView` renders a time guage. Used optionally.
-  public lazy var guageView: RDMWaveformTimeGuageView = {
-    let guageView = RDMWaveformTimeGuageView()
-    guageView.backgroundColor = marginBackgroundColor
-    scrollView.addSubview(guageView)
-    return guageView
-  }()
-
-  public lazy var centerGuide: RDMCenterGuide = {
-    let view = RDMCenterGuide()
-    addSubview(view)
-    view.backgroundColor = UIColor.transparent
-    return view
-  }()
-
-  public lazy var markersContainer: RDMWaveformMarkersContainer = {
-    let view = RDMWaveformMarkersContainer()
-    addSubview(view)
-    view.backgroundColor = UIColor.transparent
-    return view
-  }()
 
   // MARK: - Subview on/off
 
@@ -195,7 +159,64 @@ open class RDMScrollableWaveformView: UIView {
     }
   }
 
+  /// MARK: - Subviews
+
+  /// `scrollView` contains `contentView` and `guageView`.
+  open lazy var scrollView: UIScrollView = {
+    let scrollView = RDMWaveformScrollView(frame: bounds)
+    scrollView.backgroundColor = UIColor.transparent
+    scrollView.showsVerticalScrollIndicator = false
+    scrollView.showsHorizontalScrollIndicator = false
+    addSubview(scrollView)
+    scrollView.delegate = self
+    return scrollView
+  }()
+
+  /// `contentView` renders a waveform.
+  public lazy var contentView: RDMScrollableWaveformContentView = {
+    let contentView = RDMScrollableWaveformContentView()
+    contentView.backgroundColor = waveformBackgroundColor
+    contentView.contentMode = .redraw
+    scrollView.addSubview(contentView)
+    return contentView
+  }()
+
+  /// `contentBackgroundView` renders `marginBackgroundColor`
+  public lazy var contentBackgroundView: UIView = {
+    let view = UIView()
+    view.backgroundColor = marginBackgroundColor
+    scrollView.addSubview(view)
+    return view
+  }()
+
+  /// `guageView` renders a time guage. Used optionally.
+  public lazy var guageView: RDMWaveformTimeGuageView = {
+    let guageView = RDMWaveformTimeGuageView()
+    guageView.backgroundColor = marginBackgroundColor
+    scrollView.addSubview(guageView)
+    return guageView
+  }()
+
+  public lazy var centerGuide: RDMCenterGuide = {
+    let view = RDMCenterGuide()
+    addSubview(view)
+    view.backgroundColor = UIColor.transparent
+    return view
+  }()
+
+  public lazy var markersContainer: RDMWaveformMarkersContainer = {
+    let view = RDMWaveformMarkersContainer()
+    addSubview(view)
+    view.backgroundColor = UIColor.transparent
+    return view
+  }()
+
   // MARK: - Private vars
+
+  /// Downsampler.
+  private var downsampler: RDMAudioDownsampler?
+  /// Waveform calculator
+  private var calculator: RDMWaveformCalc?
 
   /// Current audio context to be used for rendering
   private var audioContext: RDMAudioContext? {
@@ -207,7 +228,9 @@ open class RDMScrollableWaveformView: UIView {
   // MARK: - view lifecycle
 
   deinit {
-    contentView.cancel()
+    debugPrint("RDMScrollableWaveformView.deinit")
+    controller?.unsubscribe(self)
+    downsampler?.cancel()
   }
 }
 
@@ -215,14 +238,17 @@ extension RDMScrollableWaveformView {
   override open func willMove(toWindow newWindow: UIWindow?) {
     super.willMove(toWindow: newWindow)
     if newWindow == nil {
-      contentView.cancel()
+      downsampler?.cancel()
     }
   }
 
   override open func layoutSubviews() {
     super.layoutSubviews()
 
+    setupContentView()
+
     guard
+      let calculator = calculator,
       let totalSamples = controller?.audioContext?.totalSamples,
       0 < totalSamples
       else {
@@ -257,7 +283,7 @@ extension RDMScrollableWaveformView {
 
     // Layout scrollView's subviews
 
-    let waveformWidth = contentView.contentWidth
+    let waveformWidth = calculator.totalWidth
     scrollView.contentSize = CGSize(width: ceil(waveformWidth + contentMargin * 2),
                                     height: scrollView.frame.height)
     contentView.marginLeft = contentMargin
@@ -311,6 +337,7 @@ extension RDMScrollableWaveformView {
 
     // Advice subviews to render
 
+    setupContentView()
     guageView.contentOffset = scrollView.contentOffset.x
     contentView.setNeedsDisplay()
     if showMarker {
@@ -347,17 +374,57 @@ extension RDMScrollableWaveformView {
 // MARK: - Waveform content management
 
 extension RDMScrollableWaveformView {
-  // Downsample entire track in advance so that it won't show
-  // delay in further rendering process.
-  public func downsampleAll() {
-    contentView.downsampler?.downsampleAll()
+  private func refreshWaveform() {
+    markersContainer.duration = controller?.audioContext?.asset.duration.seconds ?? 0
+    setNeedsLayout()
   }
 
-  private func refreshWaveform() {
-    contentView.audioContext = audioContext
-    markersContainer.duration = controller?.audioContext?.asset.duration.seconds ?? 0
-    contentView.reset()
-    setNeedsLayout()
+  private func setupContentView() {
+    setupCalculator()
+    setupDownsampler()
+
+    contentView.calculator = calculator
+    contentView.downsampler = downsampler
+    if let calculator = calculator, let downsampler = downsampler {
+      contentView.rendererParams = RDMWaveformRendererParams(decibelMin: downsampler.decibelMin,
+                                                             decibelMax: downsampler.decibelMax,
+                                                             resolution: calculator.resolution,
+                                                             totalWidth: calculator.totalWidth,
+                                                             marginLeft: 0.5,
+                                                             lineColor: waveformLineColor)
+    }
+  }
+
+  private func setupCalculator() {
+    if let calculator = calculator {
+      if calculator.totalWidth == frame.width {
+        // no need to recreate
+        return
+      }
+    }
+
+    guard let audioContext = controller?.audioContext else { return }
+    calculator = RDMWaveformCalc(duration: audioContext.asset.duration.seconds,
+                                 sampleRate: audioContext.sampleRate,
+                                 resolution: resolution)
+  }
+
+  private func setupDownsampler() {
+    guard let calculator = calculator    else { return }
+    if let downsampler = downsampler {
+      if downsampler.downsampleRate == calculator.downsampleRate {
+        // no need to recreate
+        return
+      }
+    }
+
+    guard let audioContext = controller?.audioContext else { return }
+    downsampler = RDMAudioDownsampler(
+      audioContext: audioContext,
+      downsampleRate: calculator.downsampleRate,
+      decibelMax: decibelMax,
+      decibelMin: decibelMin,
+      preloadIfTrackShorterThan: _preloadIfTrackShorterThan)
   }
 }
 

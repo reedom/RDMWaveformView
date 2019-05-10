@@ -54,9 +54,9 @@ class ViewController: UIViewController {
       let waveformView = RDMWaveformView()
       view.addSubview(waveformView)
 
-      waveformView.controller = controller
-      waveformView.showMarker = true
-      waveformView.markersController = markers
+//      waveformView.controller = controller
+//      waveformView.showMarker = true
+//      waveformView.markersController = markers
       waveformView.translatesAutoresizingMaskIntoConstraints = false
       waveformView.topAnchor.constraint(equalTo: scrollableWaveformView.bottomAnchor, constant: 12).isActive = true
       waveformView.leftAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leftAnchor).isActive = true

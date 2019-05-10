@@ -83,7 +83,7 @@ public class RDMWaveformTimeGuageView: UIView {
     // Second, create range of beg-1 ..< end+1
     let range = max(0, Int(beg) - 1) ..< max(0, Int(ceil(end)) + 1)
 
-    if let gaps = renderedTimeRanges.gaps(range) {
+    if let gaps = renderedTimeRanges.differentials(range) {
       let gap = gaps.first!
       renderedTimeRanges.add(gap)
       timeRanges.append(gap)

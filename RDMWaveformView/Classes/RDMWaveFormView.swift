@@ -11,18 +11,18 @@ import MediaPlayer
 import AVFoundation
 import SparseRanges
 
+public typealias SampleRange = CountableRange<Int>
+public typealias DownsampleRange = CountableRange<Int>
+public typealias TimeRange = CountableRange<Int>
+public typealias ViewRange = CountableRange<Int>
+
 /// A view for rendering audio waveforms
 // IBDesignable support in XCode is so broken it's sad
 open class RDMWaveformView: UIView {
-  // MARK: - Types
-
-  public struct WaveformRenderOptions {
-    let stride: CGFloat
-    let lineWidth: CGFloat
-  }
 
   // MARK: - Properties
 
+  /// `RDMWaveformController` holds `audioContenxt` and `currentTime`.
   open var controller: RDMWaveformController? {
     willSet {
       controller?.unsubscribe(self)
@@ -33,27 +33,57 @@ open class RDMWaveformView: UIView {
     }
   }
 
+  /// `RDMWaveformMarkersController` manages markers.
   public var markersController: RDMWaveformMarkersController? {
     get { return markersContainer.markersController }
     set { markersContainer.markersController = newValue }
   }
 
+  /// If the audio track duration is shorter than this value,
+  /// the `RDMAudioDownsampler` will automatically downsample
+  /// entire track.
+  private var _preloadIfTrackShorterThan: TimeInterval = 5*60
+  open var preloadIfTrackShorterThan: TimeInterval {
+    get { return _preloadIfTrackShorterThan }
+    set {
+      _preloadIfTrackShorterThan = newValue
+      downsampler?.preloadIfTrackShorterThan = newValue
+    }
+  }
+
+  /// Specifies whether the user can change the "currentTime" by tapping or scrubbing.
   open var timeSeekEnabled = true
+
+  /// Maximum decibel in a audio track.
+  public var decibelMin: CGFloat = -50
+  /// Minimum decibel in a audio track.
+  public var decibelMax: CGFloat = -10
 
   // MARK: - Appearance properties
 
+  /// The color of the waveform's lines
+  public var waveformLineColor: UIColor = UIColor(red: 255/255, green: 255/255, blue: 255/255, alpha: 1)
+
+  /// The background color of the waveform area.
   public var waveformBackgroundColor = UIColor(red: 26/255, green: 25/255, blue: 31/255, alpha: 1) {
     didSet {
       contentView.backgroundColor = waveformBackgroundColor
     }
   }
 
-  public var waveformRenderOptions = WaveformRenderOptions(stride: 1, lineWidth: 1) {
-    didSet {
-      contentView.resolution = resolution
-    }
+  public struct WaveformRenderOptions {
+    let stride: CGFloat
+    let lineWidth: CGFloat
   }
 
+  public var waveformRenderOptions = WaveformRenderOptions(stride: 1, lineWidth: 1)
+
+  private var resolution: RDMWaveformResolution {
+    return .byViewWidth(stride: waveformRenderOptions.stride,
+                        lineWidth: waveformRenderOptions.lineWidth)
+  }
+
+  /// Indicates whether to show the cursor.
   public var showCursor = true {
     didSet {
       cursorView.isHidden = !showCursor
@@ -61,19 +91,14 @@ open class RDMWaveformView: UIView {
     }
   }
 
+  /// Width of the cursor.
   public var cursorWidth: CGFloat = 3
-
-  private var resolution: RDMWaveformResolution {
-    return .byViewWidth(stride: waveformRenderOptions.stride,
-                        lineWidth: waveformRenderOptions.lineWidth)
-  }
 
   // MARK: - Subviews
 
   /// `contentView` renders a waveform.
   public lazy var contentView: RDMWaveformContentView = {
     let view = RDMWaveformContentView()
-    view.resolution = resolution
     view.backgroundColor = waveformBackgroundColor
     view.contentMode = .redraw
     addSubview(view)
@@ -110,12 +135,10 @@ open class RDMWaveformView: UIView {
 
   // MARK: - State properties
 
-  /// Current audio context to be used for rendering
-  private var audioContext: RDMAudioContext? {
-    return controller?.audioContext
-  }
-
-  open private(set) var inTimeSeekMode = false
+  /// Downsampler.
+  private var downsampler: RDMAudioDownsampler?
+  /// Waveform calculator
+  private var calculator: RDMWaveformCalc!
 
   // MARK: - initialization
 
@@ -138,9 +161,9 @@ open class RDMWaveformView: UIView {
   }
 
   deinit {
-    controller?.cancel()
+    debugPrint("RDMWaveformView.deinit")
     controller?.unsubscribe(self)
-    contentView.cancel()
+    downsampler?.cancel()
   }
 
   // MARK: - view lifecycle
@@ -148,12 +171,14 @@ open class RDMWaveformView: UIView {
   override open func willMove(toWindow newWindow: UIWindow?) {
     super.willMove(toWindow: newWindow)
     if newWindow == nil {
-      contentView.cancel()
+      downsampler?.cancel()
     }
   }
 
   override open func layoutSubviews() {
     super.layoutSubviews()
+
+    setupContentView()
 
     // contentView
 
@@ -179,8 +204,74 @@ open class RDMWaveformView: UIView {
                                       width: contentView.frame.width,
                                       height: markersContainer.markerSize.height)
     }
-    contentView.visibleWidth = contentView.frame.width
-    contentView.setNeedsDisplay()
+
+    if let controller = controller, controller.hasAudio {
+      let duration = controller.audioContext!.asset.duration.seconds
+      contentView.cancelRendering()
+      contentView.startRenderingProcedure(timeRange: 0..<Int(ceil(duration)))
+    } else {
+      // TODO clear contentView
+    }
+  }
+}
+
+// MARK: - Waveform content management
+
+extension RDMWaveformView {
+  private func refreshWaveform() {
+    // contentView.reset()
+    markersContainer.duration = controller?.audioContext?.asset.duration.seconds ?? 0
+    setNeedsLayout()
+  }
+
+  private func setupContentView() {
+    setupCalculator()
+    setupDownsampler()
+
+    contentView.calculator = calculator
+    contentView.downsampler = downsampler
+    contentView.cancelRendering()
+    if let calculator = calculator, let downsampler = downsampler {
+      contentView.rendererParams = RDMWaveformRendererParams(decibelMin: downsampler.decibelMin,
+                                                             decibelMax: downsampler.decibelMax,
+                                                             resolution: calculator.resolution,
+                                                             totalWidth: calculator.totalWidth,
+                                                             marginLeft: 0,
+                                                             lineColor: waveformLineColor)
+    }
+  }
+
+  private func setupCalculator() {
+    if let calculator = calculator {
+      if calculator.totalWidth == frame.width {
+        // no need to recreate
+        return
+      }
+    }
+
+    guard let audioContext = controller?.audioContext else { return }
+    calculator = RDMWaveformCalc(duration: audioContext.asset.duration.seconds,
+                                 sampleRate: audioContext.sampleRate,
+                                 resolution: resolution,
+                                 totalWidth: frame.width)
+  }
+
+  private func setupDownsampler() {
+    guard let calculator = calculator    else { return }
+    if let downsampler = downsampler {
+      if downsampler.downsampleRate == calculator.downsampleRate {
+        // no need to recreate
+        return
+      }
+    }
+
+    guard let audioContext = controller?.audioContext else { return }
+    downsampler = RDMAudioDownsampler(
+      audioContext: audioContext,
+      downsampleRate: calculator.downsampleRate,
+      decibelMax: decibelMax,
+      decibelMin: decibelMin,
+      preloadIfTrackShorterThan: _preloadIfTrackShorterThan)
   }
 }
 
@@ -252,22 +343,5 @@ extension RDMWaveformView: RDMWaveformControllerDelegate {
 
   public func waveformControllerDidReset(_ controller: RDMWaveformController) {
 
-  }
-}
-
-// MARK: - Waveform content management
-
-extension RDMWaveformView {
-  // Downsample entire track in advance so that it won't show
-  // delay in further rendering process.
-  public func downsampleAll() {
-    contentView.downsampler?.downsampleAll()
-  }
-
-  private func refreshWaveform() {
-    contentView.audioContext = audioContext
-    // contentView.reset()
-    markersContainer.duration = audioContext?.asset.duration.seconds ?? 0
-    setNeedsLayout()
   }
 }
