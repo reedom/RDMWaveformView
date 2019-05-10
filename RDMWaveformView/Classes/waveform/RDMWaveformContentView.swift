@@ -24,6 +24,8 @@ open class RDMWaveformContentView: UIView {
 
   /// Range of sampling data that `RDMWaveformContentView` instance should render.
   public private(set) var timeRange: TimeRange = 0..<0
+  /// X-axis offset of the waveform content where this view originally represents.
+  public private(set) var contentOffset: CGFloat = 0
 
   /// Rendering algorithm.
   private var renderer: RDMWaveformRenderer?
@@ -66,7 +68,7 @@ extension RDMWaveformContentView {
   }
 
   /// Start rendering procedure.
-  public func startRenderingProcedure(timeRange: TimeRange) {
+  public func startRenderingProcedure(timeRange: TimeRange, contentOffset: CGFloat = 0) {
     guard
       0 < frame.width,
       let downsampler = downsampler,
@@ -75,6 +77,7 @@ extension RDMWaveformContentView {
       else { return }
 
     self.timeRange = timeRange
+    self.contentOffset = contentOffset
     renderer = RDMWaveformRenderer(params: params, renderFor: timeRange)
 
     renderHints.removeAll()
@@ -91,6 +94,7 @@ extension RDMWaveformContentView {
 
       let rect = calculator
         .rectFrom(downsampleRange: downsampleRange, height: self.frame.height)
+        .offsetBy(dx: -contentOffset, dy: 0)
       let hint = DrawHint(renderID: renderID, downsamples: downsamples, rect: rect)
       self.renderHints.append(hint)
       // Put some offset on invalidate rect. Without this, the device will
@@ -114,7 +118,7 @@ extension RDMWaveformContentView {
       // This happens when
       // a) initial rendering
       // b) iOS had flushed the rendering buffer while the app was in background
-      startRenderingProcedure(timeRange: timeRange)
+      startRenderingProcedure(timeRange: timeRange, contentOffset: contentOffset)
     }
 
     renderHints.forEach { (renderHint) in

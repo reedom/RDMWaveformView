@@ -339,10 +339,10 @@ extension RDMScrollableWaveformView {
 
     setupContentView()
     guageView.contentOffset = scrollView.contentOffset.x
-    contentView.setNeedsDisplay()
     if showMarker {
       markersContainer.setNeedsLayout()
     }
+    contentView.update(contentOffset: scrollView.contentOffset.x, direction: .none)
   }
 }
 

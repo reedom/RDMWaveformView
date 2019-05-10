@@ -197,7 +197,6 @@ class RDMAudioDownsampler {
   private func store(_ downsampleRange: DownsampleRange, _ downsamples: [CGFloat]) {
     if self.downsamples.count < downsampleRange.upperBound {
       let count = downsampleRange.upperBound - downsamples.count
-      debugPrint("RDMAudioDownsampler.store: expand downsamples buffer (+\(count))")
       self.downsamples.append(contentsOf: Array<CGFloat>(repeating: 0, count: count))
     }
     for (i, sample) in downsamples.enumerated() {

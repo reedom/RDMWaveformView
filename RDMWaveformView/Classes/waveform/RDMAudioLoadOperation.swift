@@ -108,22 +108,16 @@ final public class RDMAudioLoadOperation: Operation {
       0 < downsampleRate
       else { return }
 
-    print("from: \(CMTimeMakeWithSeconds(Float64(timeRange.lowerBound), preferredTimescale: 1000).seconds)")
-    print("duration: \(CMTimeMakeWithSeconds(Float64(timeRange.count), preferredTimescale: 1000).seconds)")
     let duration = CMTimeRange(start: CMTimeMakeWithSeconds(Float64(timeRange.lowerBound), preferredTimescale: 1000),
                                duration: CMTimeMakeWithSeconds(Float64(timeRange.count), preferredTimescale: 1000))
 
-    print("dur: \(duration.duration.seconds)")
     let downsampleUnit = audioContext.channelCount * downsampleRate
     let readUnit = downsampleUnit * MemoryLayout<Int16>.size
     let filter = [Float](repeating: 1.0 / Float(downsampleUnit), count: downsampleUnit)
 
-    var total: Int = 0
     let calc = RDMAudioDownsampleCalc(audioContext, downsampleRate)
     var downsampleIndex = calc.downsampleRangeFrom(timeRange: timeRange).lowerBound
     readSamples(duration, readUnit) { (sampleBuffer) in
-      total += sampleBuffer.count / audioContext.channelCount
-      print("total: \(total)")
       let downsampleCount = (readUnit <= sampleBuffer.count) ? sampleBuffer.count / readUnit : 1
       let downsampleRate  = (readUnit <= sampleBuffer.count) ? downsampleUnit : sampleBuffer.count / MemoryLayout<Int16>.size
       let downsamples = downsample(fromData: sampleBuffer,

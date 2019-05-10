@@ -192,11 +192,9 @@ extension RDMWaveformControllerSpecs {
 
 extension RDMWaveformControllerSpecs: RDMWaveformControllerDelegate {
   public func waveformControllerWillLoadAudio(_ controller: RDMWaveformController) {
-    debugPrint("gotWillLoadAudio = true")
     gotWillLoadAudio = true
   }
   public func waveformControllerDidLoadAudio(_ controller: RDMWaveformController) {
-    debugPrint("gotDidLoadAudio = true")
     gotDidLoadAudio = true
   }
   public func waveformController(_ controller: RDMWaveformController, didUpdateTime time: TimeInterval, seekMode: Bool) {

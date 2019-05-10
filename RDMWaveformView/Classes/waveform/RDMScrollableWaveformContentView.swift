@@ -53,17 +53,24 @@ extension RDMScrollableWaveformContentView {
       let calculator = calculator
       else { return }
 
-    let timeRange = currentTimeRangeInView()
+    var timeRange = currentTimeRangeInView()
+    switch direction {
+    case .forward:
+      timeRange = timeRange.lowerBound ..< min(Int(ceil(calculator.duration)), timeRange.upperBound + 1)
+    case .backward:
+      timeRange = max(0, timeRange.lowerBound - 1) ..< timeRange.upperBound
+    case .none:
+      timeRange = max(0, timeRange.lowerBound - 1) ..< min(Int(ceil(calculator.duration)), timeRange.upperBound + 1)
+    }
+
     timeRange.forEach { (seconds) in
       guard !activeContents.contains(where: { $0.timeRange.lowerBound == seconds }) else { return }
       let contentView = !deactiveContents.isEmpty ? deactiveContents.removeFirst() : createContentView()
       let timeRange = seconds ..< seconds+1
       contentView.isHidden = false
-      contentView.frame = calculator
-        .rectFrom(timeRange: timeRange, height: frame.height)
-        .insetBy(dx: -0.5, dy: 0)
-      print("for timeRange: \(timeRange), frame = \(contentView.frame)")
-      contentView.startRenderingProcedure(timeRange: timeRange)
+      let baseRect = calculator.rectFrom(timeRange: timeRange, height: frame.height)
+      contentView.frame = baseRect.insetBy(dx: -0.5, dy: 0)
+      contentView.startRenderingProcedure(timeRange: timeRange, contentOffset: baseRect.minX)
       activeContents.append(contentView)
     }
 
@@ -83,7 +90,6 @@ extension RDMScrollableWaveformContentView {
 
 extension RDMScrollableWaveformContentView {
   private func createContentView() -> RDMWaveformContentView {
-    print("createContentView")
     let contentView = RDMWaveformContentView()
     addSubview(contentView)
     contentView.calculator = calculator

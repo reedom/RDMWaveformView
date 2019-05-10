@@ -58,7 +58,7 @@ extension RDMAudioContext {
         return
 
       default:
-        print("FDWaveformView could not load asset: \(error?.localizedDescription ?? "Unknown error")")
+        NSLog("FDWaveformView could not load asset: \(error?.localizedDescription ?? "Unknown error")")
       }
 
       if let error = error {
