@@ -90,6 +90,19 @@ class RDMAudioDownsampler {
     operations.forEach { $0.cancel() }
   }
 
+  public func cancel(outOf timeRange: TimeRange) {
+    var cancelled = false
+    operations.forEach { operation in
+      if !timeRange.overlaps(operation.timeRange) {
+        cancelled = true
+        operation.cancel()
+      }
+    }
+    if cancelled {
+      operations.removeAll { !timeRange.overlaps($0.timeRange) }
+    }
+  }
+
   /// Downsapmle the specific range.
   ///
   /// - Parameter timeRange: Downsample target range in second.
@@ -127,7 +140,7 @@ class RDMAudioDownsampler {
       // It needs to downsample.
       notFounds.forEach { (downsampleRange) in
         // Call callback so that view can have a change to erase the view area.
-        callback(downsampleRange, emptySamples[0..<downsampleRange.count])
+        callback(downsampleRange, emptySamples[0..<0])
         let calc = RDMAudioDownsampleCalc(audioContext, downsampleRate)
         let timeRange = calc.timeRangeFrom(downsampleRange: downsampleRange)
         invokeOperation(timeRange, onComplete: onLocalCompleted, callback: callback)

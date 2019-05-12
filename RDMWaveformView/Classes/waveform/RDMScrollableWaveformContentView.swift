@@ -57,6 +57,7 @@ extension RDMScrollableWaveformContentView {
 
     let r = currentTimeRangeInView()
     let timeRange = max(0, r.lowerBound - 1) ..< min(Int(ceil(calculator.duration)), r.upperBound + 1)
+    downsampler?.cancel(outOf: timeRange)
 
     timeRange.forEach { (seconds) in
       guard !activeContents.contains(where: { $0.timeRange.lowerBound == seconds }) else { return }
@@ -65,6 +66,7 @@ extension RDMScrollableWaveformContentView {
       contentView.isHidden = false
       let baseRect = calculator.rectFrom(timeRange: timeRange, height: frame.height)
       contentView.frame = baseRect.insetBy(dx: -0.5, dy: 0)
+      contentView.cancelRendering()
       contentView.startRenderingProcedure(timeRange: timeRange, contentOffset: baseRect.minX)
       activeContents.append(contentView)
     }
@@ -109,4 +111,3 @@ extension RDMScrollableWaveformContentView {
     return CGRect(x: contentOffset, y: 0, width: visibleWidth, height: frame.height)
   }
 }
-
