@@ -22,13 +22,6 @@ open class RDMScrollableWaveformView: UIView {
     case center
   }
 
-  /// Scrolling direction.
-  public enum ScrollDirection {
-    case none
-    case forward
-    case backward
-  }
-
   /// The options on rendering waveforms.
   public struct WaveformRenderOptions {
     /// Renderer draws one second amount of waveform With this width, in pixel.
@@ -161,7 +154,7 @@ open class RDMScrollableWaveformView: UIView {
 
   /// MARK: - Subviews
 
-  /// `scrollView` contains `contentView` and `guageView`.
+  /// `scrollView` contains `contentView`.
   open lazy var scrollView: UIScrollView = {
     let scrollView = RDMWaveformScrollView(frame: bounds)
     scrollView.backgroundColor = UIColor.transparent
@@ -193,7 +186,8 @@ open class RDMScrollableWaveformView: UIView {
   public lazy var guageView: RDMWaveformTimeGuageView = {
     let guageView = RDMWaveformTimeGuageView()
     guageView.backgroundColor = marginBackgroundColor
-    scrollView.addSubview(guageView)
+    guageView.isUserInteractionEnabled = false
+    addSubview(guageView)
     return guageView
   }()
 
@@ -293,11 +287,9 @@ extension RDMScrollableWaveformView {
                                  y: 0,
                                  width: waveformWidth,
                                  height: scrollView.contentSize.height - guageHeight)
-      guageView.marginLeft = contentMargin
-      guageView.visibleWidth = scrollView.frame.width
-      guageView.frame = CGRect(x: guageView.labelPaddingLeft,
-                               y: contentView.frame.maxY,
-                               width: scrollView.contentSize.width + scrollView.frame.width,
+      guageView.frame = CGRect(x: 0,
+                               y: scrollView.frame.maxY - guageHeight,
+                               width: frame.width,
                                height: guageHeight)
     } else {
       contentView.frame = CGRect(x: ceil(contentMargin),
@@ -334,15 +326,16 @@ extension RDMScrollableWaveformView {
     scrollView.sendSubviewToBack(contentBackgroundView)
     bringSubviewToFront(centerGuide)
     bringSubviewToFront(markersContainer)
+    bringSubviewToFront(guageView)
 
     // Advice subviews to render
 
     setupContentView()
     guageView.contentOffset = scrollView.contentOffset.x
+    contentView.contentOffset = scrollView.contentOffset.x
     if showMarker {
       markersContainer.setNeedsLayout()
     }
-    contentView.update(contentOffset: scrollView.contentOffset.x, direction: .none)
   }
 }
 
@@ -385,6 +378,7 @@ extension RDMScrollableWaveformView {
 
     contentView.calculator = calculator
     contentView.downsampler = downsampler
+    guageView.calculator = calculator
     if let calculator = calculator, let downsampler = downsampler {
       contentView.rendererParams = RDMWaveformRendererParams(decibelMin: downsampler.decibelMin,
                                                              decibelMax: downsampler.decibelMax,
@@ -392,6 +386,7 @@ extension RDMScrollableWaveformView {
                                                              totalWidth: calculator.totalWidth,
                                                              marginLeft: 0.5,
                                                              lineColor: waveformLineColor)
+      guageView.rendererParams = RDMWaveformTimeGuageRendererParams()
     }
   }
 
@@ -456,12 +451,10 @@ extension RDMScrollableWaveformView: UIScrollViewDelegate {
     // contentView and guideView
 
     let contentOffset = max(0, min(scrollView.contentSize.width, scrollView.contentOffset.x))
-    let scrollDirection = self.scrollDirection(newContentOffset: contentOffset)
     lastScrollContentOffset = contentOffset
 
     guageView.contentOffset = scrollView.contentOffset.x
-    contentView.update(contentOffset: contentOffset,
-                       direction: scrollDirection)
+    contentView.contentOffset = scrollView.contentOffset.x
 
     // delegate
 
@@ -471,16 +464,6 @@ extension RDMScrollableWaveformView: UIScrollViewDelegate {
 
   public func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
     self.controller?.leaveSeekMode()
-  }
-
-  private func scrollDirection(newContentOffset: CGFloat) -> ScrollDirection {
-    if lastScrollContentOffset < newContentOffset {
-      return .forward
-    } else if scrollView.contentOffset.x < lastScrollContentOffset {
-      return .backward
-    } else {
-      return .none
-    }
   }
 }
 

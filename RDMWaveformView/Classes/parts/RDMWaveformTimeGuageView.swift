@@ -11,145 +11,54 @@ import UIKit
 import AVFoundation
 import SparseRanges
 
-public class RDMWaveformTimeGuageView: UIView {
-  public var visibleWidth: CGFloat = 0 {
-    didSet { setNeedsDisplay() }
-  }
-  public var marginLeft: CGFloat = 0 {
-    didSet { setNeedsDisplay() }
-  }
-  public var labelPaddingLeft: CGFloat = -2 {
-    didSet { setNeedsDisplay() }
-  }
-  public var labelPaddingBottom: CGFloat = 1 {
-    didSet { setNeedsDisplay() }
-  }
-  public var widthPerSecond: CGFloat = 100 {
-    didSet { setNeedsDisplay() }
-  }
-  public var linesPerSecond: Int = 4 {
-    didSet { setNeedsDisplay() }
-  }
-  public var majorLinePaddingBottom: CGFloat = 1 {
-    didSet { setNeedsDisplay() }
-  }
-  public var minorLinePaddingBottom: CGFloat = 3 {
-    didSet { setNeedsDisplay() }
-  }
-  public var majorLineWidth: CGFloat = 1 {
-    didSet { setNeedsDisplay() }
-  }
-  public var minorLineWidth: CGFloat = 0.5 {
-    didSet { setNeedsDisplay() }
-  }
-  public var font: UIFont = UIFont(name: "Courier", size: 14)! {
-    didSet { setNeedsDisplay() }
-  }
-  public var lineColor: UIColor = UIColor(red: 88/255, green: 88/255, blue: 88/255, alpha: 1) {
-    didSet { setNeedsDisplay() }
-  }
-  public var labelColor: UIColor = UIColor(red: 88/255, green: 88/255, blue: 88/255, alpha: 1) {
-    didSet { setNeedsDisplay() }
+public struct RDMWaveformTimeGuageRendererParams {
+  public var labelPaddingLeft: CGFloat = -2
+  public var labelPaddingBottom: CGFloat = 1
+  public var widthPerSecond: CGFloat = 100
+  public var linesPerSecond: Int = 4
+  public var majorLinePaddingBottom: CGFloat = 1
+  public var minorLinePaddingBottom: CGFloat = 3
+  public var majorLineWidth: CGFloat = 1
+  public var minorLineWidth: CGFloat = 0.5
+  public var font: UIFont = UIFont(name: "Courier", size: 14)!
+  public var lineColor: UIColor = UIColor(red: 88/255, green: 88/255, blue: 88/255, alpha: 1)
+  public var labelColor: UIColor = UIColor(red: 88/255, green: 88/255, blue: 88/255, alpha: 1)
+}
+
+public class RDMWaveformTimeGuageRenderer {
+  private let params: RDMWaveformTimeGuageRendererParams
+
+  public init(params: RDMWaveformTimeGuageRendererParams) {
+    self.params = params
   }
 
-  public var contentOffset: CGFloat = 0 {
-    didSet {
-      if let rect = calcRectNeedToDraw() {
-        setNeedsDisplay(rect)
-      }
-    }
-  }
-
-  private var renderedTimeRanges = SparseCountableRange<Int>()
-  private var timeRanges = [CountableRange<Int>]()
-
-  public func refresh() {
-    renderedTimeRanges.removeAll()
-    timeRanges.removeAll()
-  }
-
-  private func calcRectNeedToDraw() -> CGRect? {
-    guard
-      0 < visibleWidth,
-      0 < widthPerSecond,
-      0 < linesPerSecond else { return nil }
-
-    // `RDMWaveformTimeGuageView` should draw the current visible range plus ±1sec.
-
-    // First, we calculate time range of visible part of the view.
-    let beg = (contentOffset - marginLeft) / widthPerSecond
-    let end = (contentOffset - marginLeft + visibleWidth) / widthPerSecond
-
-    // Second, create range of beg-1 ..< end+1
-    let range = max(0, Int(beg) - 1) ..< max(0, Int(ceil(end)) + 1)
-
-    if let gaps = renderedTimeRanges.differentials(range) {
-      let gap = gaps.first!
-      renderedTimeRanges.add(gap)
-      timeRanges.append(gap)
-      return rectFrom(timeRange: gap)
-    } else {
-      return nil
-    }
-  }
-
-  private func rectFrom(timeRange: CountableRange<Int>) -> CGRect {
-    let x = CGFloat(timeRange.lowerBound) * widthPerSecond + marginLeft
-    let width = CGFloat(timeRange.count) * widthPerSecond
-    return CGRect(x: x, y: 0, width: width, height: frame.height)
-  }
-
-  override public func draw(_ rect: CGRect) {
-    guard
-      0 < visibleWidth,
-      0 < widthPerSecond,
-      0 < linesPerSecond,
-     let context = UIGraphicsGetCurrentContext() else {
-      return
-    }
-
-    if timeRanges.isEmpty {
-      // This happens when
-      // a) initial rendering
-      // b) iOS had flushed the rendering buffer while the app was in background
-      renderedTimeRanges.removeAll()
-      _ = calcRectNeedToDraw()
-    }
-
-    timeRanges.forEach { (timeRange) in
-      drawGuage(context: context, timeRange: timeRange)
-    }
-    timeRanges.removeAll()
-  }
-
-  private func drawGuage(context: CGContext, timeRange: CountableRange<Int>) {
-    let rect = rectFrom(timeRange: timeRange)
-    let fontHeight = font.lineHeight + labelPaddingBottom
-    let majorLineHeight = frame.height - fontHeight - majorLinePaddingBottom
-    let minorLineHeight = frame.height - fontHeight - minorLinePaddingBottom
-    let stride = widthPerSecond / CGFloat(linesPerSecond)
-    let textY = frame.height - fontHeight
-    let textAttr = [NSAttributedString.Key.foregroundColor: labelColor,
-                    NSAttributedString.Key.font: font ]
+  public func drawGuage(context: CGContext, timeRange: CountableRange<Int>, rect: CGRect) {
+    let fontHeight = params.font.lineHeight + params.labelPaddingBottom
+    let majorLineHeight = rect.height - fontHeight - params.majorLinePaddingBottom
+    let minorLineHeight = rect.height - fontHeight - params.minorLinePaddingBottom
+    let stride = params.widthPerSecond / CGFloat(params.linesPerSecond)
+    let textY = rect.height - fontHeight
+    let textAttr = [NSAttributedString.Key.foregroundColor: params.labelColor,
+                    NSAttributedString.Key.font: params.font ]
 
     context.setShouldAntialias(false)
     context.setAlpha(1.0)
-    context.setStrokeColor(lineColor.cgColor)
+    context.setStrokeColor(params.lineColor.cgColor)
 
     var sec = timeRange.lowerBound
-    var x = rect.minX - labelPaddingLeft
+    var x = rect.minX - params.labelPaddingLeft
     while (sec < timeRange.upperBound) {
-      context.setLineWidth(majorLineWidth)
+      context.setLineWidth(params.majorLineWidth)
       context.move(to: CGPoint(x: x, y: 0))
       context.addLine(to: CGPoint(x: x, y: majorLineHeight))
 
       let text = getTimeString(seconds: sec)
-      text.draw(at: CGPoint(x: x + labelPaddingLeft, y: textY), withAttributes: textAttr)
+      text.draw(at: CGPoint(x: x + params.labelPaddingLeft, y: textY), withAttributes: textAttr)
       sec += 1
 
-      (0..<linesPerSecond).forEach { (i) in
+      (0..<params.linesPerSecond).forEach { (i) in
         x += stride
-        context.setLineWidth(minorLineWidth)
+        context.setLineWidth(params.minorLineWidth)
         context.move(to: CGPoint(x: x, y: 0))
         context.addLine(to: CGPoint(x: x, y: minorLineHeight))
       }
@@ -166,5 +75,92 @@ public class RDMWaveformTimeGuageView: UIView {
     } else {
       return String(format: "%d:%02d:%02d", hours, min, sec)
     }
+  }
+}
+
+public class RDMWaveformTimeGuageView: UIView {
+  /// Calcurator around waveform and its view.
+  var calculator: RDMWaveformCalc?
+  var rendererParams: RDMWaveformTimeGuageRendererParams?
+
+  /// ScrollView's content offset.
+  public var contentOffset: CGFloat = 0 {
+    didSet { updateGuage() }
+  }
+
+  /// A collection of unit views in use.
+  private var activeViews = [RDMWaveformTimeGuageUnitView]()
+  /// A object pool of deactive unit views.
+  private var deactiveViews = [RDMWaveformTimeGuageUnitView]()
+}
+
+extension RDMWaveformTimeGuageView {
+  private func updateGuage() {
+    guard
+      let calculator = calculator,
+      let rendererParams = rendererParams
+      else { return }
+
+    let timeRange = currentTimeRangeInView()
+
+    timeRange.forEach { (seconds) in
+      let timeRange = seconds ..< seconds+1
+      let baseRect = calculator.rectFrom(timeRange: timeRange, height: frame.height, limits: false)
+      if let unitView = activeViews.first(where: { $0.timeRange.lowerBound == seconds }) {
+        unitView.frame = baseRect
+          .offsetBy(dx: frame.midX - contentOffset, dy: 0)
+          .insetBy(dx: rendererParams.labelPaddingLeft, dy: 0)
+        return
+      }
+
+      let unitView = !deactiveViews.isEmpty ? deactiveViews.removeFirst() : createUnitView()
+      activeViews.append(unitView)
+      unitView.isHidden = false
+      unitView.timeRange = timeRange
+      unitView.frame = baseRect
+        .offsetBy(dx: frame.midX - contentOffset, dy: 0)
+        .insetBy(dx: rendererParams.labelPaddingLeft, dy: 0)
+      unitView.setNeedsDisplay()
+    }
+
+    activeViews.removeAll(where: { unitView in
+      if unitView.timeRange.upperBound <= timeRange.lowerBound ||
+        timeRange.upperBound <= unitView.timeRange.lowerBound {
+        unitView.isHidden = true
+        deactiveViews.append(unitView)
+        return true
+      }
+      return false
+    })
+  }
+
+  private func createUnitView() -> RDMWaveformTimeGuageUnitView {
+    let unitView = RDMWaveformTimeGuageUnitView()
+    addSubview(unitView)
+    unitView.backgroundColor = UIColor.transparent
+    unitView.rendererParams = rendererParams
+    return unitView
+  }
+
+  private func currentTimeRangeInView() -> TimeRange {
+    guard
+      0 < frame.width,
+      let calculator = calculator
+      else { return 0..<0 }
+    let from = contentOffset - frame.midX
+    let to = contentOffset + frame.width - frame.midX
+    let r = calculator.timeRangeInView(from, to, limits: false)
+    return Int(r.lowerBound) ..< Int(ceil(r.upperBound))
+  }
+}
+
+class RDMWaveformTimeGuageUnitView: UIView {
+  var timeRange: TimeRange!
+  var rendererParams: RDMWaveformTimeGuageRendererParams!
+
+  override func draw(_ rect: CGRect) {
+    guard let context = UIGraphicsGetCurrentContext() else { return }
+    let renderer = RDMWaveformTimeGuageRenderer(params: rendererParams)
+    renderer.drawGuage(context: context, timeRange: timeRange, rect: rect)
   }
 }

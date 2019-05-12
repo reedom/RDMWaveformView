@@ -78,7 +78,7 @@ extension RDMWaveformContentView {
 
     self.timeRange = timeRange
     self.contentOffset = contentOffset
-    renderer = RDMWaveformRenderer(params: params, renderFor: timeRange)
+    renderer = RDMWaveformRenderer(params: params)
 
     renderHints.removeAll()
 

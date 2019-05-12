@@ -75,34 +75,46 @@ extension RDMWaveformCalc {
   }
 
   /// Calculate rendering rectangle for the `timeRange`.
-  public func rectFrom(timeRange: TimeRange, height: CGFloat) -> CGRect {
-    let x1 = xFromSeconds(timeRange.lowerBound)
-    let x2 = xFromSeconds(timeRange.upperBound)
+  public func rectFrom(timeRange: TimeRange, height: CGFloat, limits: Bool = true) -> CGRect {
+    let x1 = xFromSeconds(timeRange.lowerBound, limits: limits)
+    let x2 = xFromSeconds(timeRange.upperBound, limits: limits)
     return CGRect(x: x1, y: 0, width: x2 - x1, height: height)
   }
 
   /// Calculate x axis position for the specified time.
-  public func xFromSeconds(_ seconds: Int) -> CGFloat {
+  public func xFromSeconds(_ seconds: Int, limits: Bool = true) -> CGFloat {
     guard 0 < duration else { return 0 }
 
     let progress = Double(seconds) / duration
-    return max(0, min(totalWidth, round(totalWidth * CGFloat(progress))))
+    if limits {
+      return max(0, min(totalWidth, round(totalWidth * CGFloat(progress))))
+    } else {
+      return max(0, round(totalWidth * CGFloat(progress)))
+    }
   }
 
   /// Calculate time range for the `from`-`to` positions in the view.
   ///
   /// - Parameter from: x-axis position that the range starts from.
   /// - Parameter to: x-axis position that the range ends at.
-  public func timeRangeInView(_ from: CGFloat, _ to: CGFloat) -> (lowerBound: Double, upperBound: Double) {
+  public func timeRangeInView(_ from: CGFloat, _ to: CGFloat, limits: Bool = true) -> (lowerBound: Double, upperBound: Double) {
     switch resolution {
     case .byViewWidth(_, _):
       let lowerBound = Double(from) / Double(totalWidth) * duration
       let upperBound = Double(to) / Double(totalWidth) * duration
-      return (max(0, min(duration, lowerBound)), max(0, min(duration, upperBound)))
+      if limits {
+        return (max(0, min(duration, lowerBound)), max(0, min(duration, upperBound)))
+      } else {
+        return (max(0, lowerBound), max(0, upperBound))
+      }
     case .perSecond(let widthPerSecond, _, _):
       let lowerBound = Double((from) / CGFloat(widthPerSecond))
       let upperBound = Double((to) / CGFloat(widthPerSecond))
-      return (max(0, min(duration, lowerBound)), max(0, min(duration, upperBound)))
+      if limits {
+        return (max(0, min(duration, lowerBound)), max(0, min(duration, upperBound)))
+      } else {
+        return (max(0, lowerBound), max(0, upperBound))
+      }
     }
   }
 }

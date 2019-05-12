@@ -24,10 +24,14 @@ open class RDMScrollableWaveformContentView: UIView {
 
   // MARK: - Drawing properties
 
+  /// Visible width in the screen.
   public var visibleWidth: CGFloat = 0
+  /// Margin left.
   public var marginLeft: CGFloat = 0
-
-  private var contentOffset: CGFloat = 0
+  /// ScrollView's content offset.
+  public var contentOffset: CGFloat = 0 {
+    didSet { updateContent() }
+  }
 
   /// A collection of content views in use.
   private var activeContents = [RDMWaveformContentView]()
@@ -44,24 +48,15 @@ open class RDMScrollableWaveformContentView: UIView {
 }
 
 extension RDMScrollableWaveformContentView {
-  public typealias ScrollDirection = RDMScrollableWaveformView.ScrollDirection
-
-  public func update(contentOffset: CGFloat = 0, direction: ScrollDirection = .none) {
-    self.contentOffset = contentOffset
+  private func updateContent() {
     guard
       downsampler != nil,
+      rendererParams != nil,
       let calculator = calculator
       else { return }
 
-    var timeRange = currentTimeRangeInView()
-    switch direction {
-    case .forward:
-      timeRange = timeRange.lowerBound ..< min(Int(ceil(calculator.duration)), timeRange.upperBound + 1)
-    case .backward:
-      timeRange = max(0, timeRange.lowerBound - 1) ..< timeRange.upperBound
-    case .none:
-      timeRange = max(0, timeRange.lowerBound - 1) ..< min(Int(ceil(calculator.duration)), timeRange.upperBound + 1)
-    }
+    let r = currentTimeRangeInView()
+    let timeRange = max(0, r.lowerBound - 1) ..< min(Int(ceil(calculator.duration)), r.upperBound + 1)
 
     timeRange.forEach { (seconds) in
       guard !activeContents.contains(where: { $0.timeRange.lowerBound == seconds }) else { return }

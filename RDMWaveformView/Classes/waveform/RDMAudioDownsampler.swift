@@ -122,8 +122,12 @@ class RDMAudioDownsampler {
     }
 
     if let notFounds = handledRanges.differentials(range) {
+      let emptySamples = Array<CGFloat>(repeating: decibelMin,
+                                        count: notFounds.max(by: { $0.count < $1.count })!.count)
       // It needs to downsample.
       notFounds.forEach { (downsampleRange) in
+        // Call callback so that view can have a change to erase the view area.
+        callback(downsampleRange, emptySamples[0..<downsampleRange.count])
         let calc = RDMAudioDownsampleCalc(audioContext, downsampleRate)
         let timeRange = calc.timeRangeFrom(downsampleRange: downsampleRange)
         invokeOperation(timeRange, onComplete: onLocalCompleted, callback: callback)
