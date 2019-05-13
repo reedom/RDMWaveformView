@@ -286,8 +286,10 @@ extension RDMWaveformView {
       else { return }
     let progress = recognizer.location(in: self).x / bounds.width
     let time = Double(progress) * duration.seconds
+    controller.enterSeekMode()
     controller.updateTime(time, excludeNotify: self)
     updateCursor()
+    controller.leaveSeekMode()
   }
 
   @objc func handlePan(_ recognizer: UIPanGestureRecognizer) {
