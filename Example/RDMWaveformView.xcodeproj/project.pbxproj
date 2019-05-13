@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		04B904CBC97A4CC1C447380D /* Pods_RDMWaveformView_Example.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B5A4C5B504D3B202D655E87 /* Pods_RDMWaveformView_Example.framework */; };
+		0758FA29228909510040CBDC /* SampleBufferSpecs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0758FA28228909510040CBDC /* SampleBufferSpecs.swift */; };
 		0773CF002265BC850061941B /* file_example_MP3_700KB.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 0773CEFF2265BC840061941B /* file_example_MP3_700KB.mp3 */; };
 		077FAF89228542400094A704 /* RDMWaveformMarkerSpecs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 077FAF88228542400094A704 /* RDMWaveformMarkerSpecs.swift */; };
 		077FAF8B22854BE30094A704 /* RDMAudioLoadOperationSpecs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 077FAF8A22854BE30094A704 /* RDMAudioLoadOperationSpecs.swift */; };
@@ -33,6 +34,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0758FA28228909510040CBDC /* SampleBufferSpecs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleBufferSpecs.swift; sourceTree = "<group>"; };
 		0773CEFF2265BC840061941B /* file_example_MP3_700KB.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = file_example_MP3_700KB.mp3; sourceTree = "<group>"; };
 		077FAF88228542400094A704 /* RDMWaveformMarkerSpecs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RDMWaveformMarkerSpecs.swift; sourceTree = "<group>"; };
 		077FAF8A22854BE30094A704 /* RDMAudioLoadOperationSpecs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RDMAudioLoadOperationSpecs.swift; sourceTree = "<group>"; };
@@ -143,6 +145,7 @@
 				077FAF90228567A40094A704 /* RDMAudioDownsamplerSpecs.swift */,
 				607FACE91AFB9204008FA782 /* Supporting Files */,
 				077FAF8C22855B380094A704 /* UIDevice.swift */,
+				0758FA28228909510040CBDC /* SampleBufferSpecs.swift */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -395,6 +398,7 @@
 			files = (
 				607FACEC1AFB9204008FA782 /* RDMWaveformControllerSpecs.swift in Sources */,
 				077FAF8B22854BE30094A704 /* RDMAudioLoadOperationSpecs.swift in Sources */,
+				0758FA29228909510040CBDC /* SampleBufferSpecs.swift in Sources */,
 				077FAF89228542400094A704 /* RDMWaveformMarkerSpecs.swift in Sources */,
 				077FAF91228567A40094A704 /* RDMAudioDownsamplerSpecs.swift in Sources */,
 				077FAF8D22855B380094A704 /* UIDevice.swift in Sources */,
