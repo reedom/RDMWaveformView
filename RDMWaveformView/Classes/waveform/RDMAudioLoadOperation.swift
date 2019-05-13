@@ -160,8 +160,9 @@ final public class RDMAudioLoadOperation: Operation {
 
     let sampleBuffer = SampleBuffer(bufferSize: readUnit) { onRead($0) }
 
+    var remainBytes = Int(ceil(duration.duration.seconds * Double(audioContext.sampleRate))) * audioContext.channelCount * MemoryLayout<Int16>.size
     while reader.status == .reading {
-      guard !isCancelled else { return }
+      guard !isCancelled, 0 < remainBytes else { return }
 
       guard
         let readSampleBuffer = readerOutput.copyNextSampleBuffer(),
@@ -176,7 +177,9 @@ final public class RDMAudioLoadOperation: Operation {
                                   lengthAtOffsetOut: &readBufferLength,
                                   totalLengthOut: nil,
                                   dataPointerOut: &readBufferPointer)
-      sampleBuffer.append(UnsafeBufferPointer(start: readBufferPointer, count: readBufferLength))
+      let appendLength = min(readBufferLength, remainBytes)
+      remainBytes -= appendLength
+      sampleBuffer.append(UnsafeBufferPointer(start: readBufferPointer, count: appendLength))
       CMSampleBufferInvalidate(readSampleBuffer)
     }
 
