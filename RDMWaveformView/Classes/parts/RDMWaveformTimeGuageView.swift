@@ -68,7 +68,7 @@ public class RDMWaveformTimeGuageRenderer {
 
   private func getTimeString(seconds: Int) -> String {
     let hours = seconds / 3600
-    let min = seconds / 60
+    let min = seconds % 3600 / 60
     let sec = seconds % 60
     if hours == 0 {
       return String(format: "%02d:%02d", min, sec)
