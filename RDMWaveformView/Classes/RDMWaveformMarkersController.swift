@@ -21,6 +21,9 @@ open class RDMWaveformMarkersController: NSObject {
   /// in this package.
   private var observers = Set<WeakDelegateRef<RDMWaveformMarkersControllerDelegate>>()
 
+  /// Under loading mode, `RDMWaveformMarkersController` suppresses notifications.
+  private var loading = false
+
   /// A collection of `RDMWaveformMarker`.
   private var _markers = RDMWaveformMarkers()
   /// An iterator of the `RDMWaveformMarker` collection.
@@ -44,7 +47,9 @@ extension RDMWaveformMarkersController {
     marker.delegate = self
     _markers.add(marker)
     observers.forEach({ $0.value?.waveformMarkersController?(self, didAdd: marker)})
-    delegate?.waveformMarkersController?(self, didAdd: marker)
+    if !loading {
+      delegate?.waveformMarkersController?(self, didAdd: marker)
+    }
     return true
   }
 
@@ -54,7 +59,9 @@ extension RDMWaveformMarkersController {
     _markers.add(marker)
 
     observers.forEach({ $0.value?.waveformMarkersController?(self, didAdd: marker)})
-    delegate?.waveformMarkersController?(self, didAdd: marker)
+    if !loading {
+      delegate?.waveformMarkersController?(self, didAdd: marker)
+    }
     return marker
   }
 
@@ -63,8 +70,31 @@ extension RDMWaveformMarkersController {
 
     marker.delegate = nil
     observers.forEach({ $0.value?.waveformMarkersController?(self, didRemove: marker)})
-    delegate?.waveformMarkersController?(self, didRemove: marker)
+    if !loading {
+      delegate?.waveformMarkersController?(self, didRemove: marker)
+    }
     return true
+  }
+
+  open func replaceWith(_ markers: [RDMWaveformMarker]) {
+    loading = true
+    defer { loading = false }
+
+    for updated in markers {
+      if let current = _markers.find(uuid: updated.uuid) {
+        if current.updatedAt < updated.updatedAt {
+          current.copyPropertiesFrom(updated)
+        } else {
+        }
+      } else {
+        add(updated)
+      }
+    }
+
+    for marker in _markers.makeIterator() {
+      guard !markers.contains(where: { $0.uuid == marker.uuid }) else { continue }
+      remove(marker)
+    }
   }
 }
 
@@ -94,9 +124,9 @@ extension RDMWaveformMarkersController {
     delegate?.waveformMarkersController?(self, willBeginDrag: marker)
   }
 
-  func endDrag(_ marker: RDMWaveformMarker) {
+  func endDrag(_ marker: RDMWaveformMarker, removing: Bool) {
     dragging = false
-    delegate?.waveformMarkersController?(self, didEndDrag: marker)
+    delegate?.waveformMarkersController?(self, didEndDrag: marker, removing: removing)
   }
 }
 
@@ -107,12 +137,16 @@ extension RDMWaveformMarkersController: RDMWaveformMarkerDelegate {
     _markers.updateOrderIfNeeded(updated: marker)
 
     observers.forEach({ $0.value?.waveformMarkersController?(self, didUpdateTime: marker)})
-    delegate?.waveformMarkersController?(self, didUpdateTime: marker)
+    if !loading {
+      delegate?.waveformMarkersController?(self, didUpdateTime: marker)
+    }
   }
 
   func markerDidUpdateData(_ marker: RDMWaveformMarker) {
     observers.forEach({ $0.value?.waveformMarkersController?(self, didUpdateData: marker)})
-    delegate?.waveformMarkersController?(self, didUpdateData: marker)
+    if !loading {
+      delegate?.waveformMarkersController?(self, didUpdateData: marker)
+    }
   }
 }
 
@@ -148,7 +182,8 @@ extension RDMWaveformMarkersController {
   ///
   /// - Parameter controller: The event source.
   /// - Parameter marker: The subject.
-  @objc optional func waveformMarkersController(_ controller: RDMWaveformMarkersController, didEndDrag marker: RDMWaveformMarker)
+  /// - Parameter removing: True if the marker is about to be removing.
+  @objc optional func waveformMarkersController(_ controller: RDMWaveformMarkersController, didEndDrag marker: RDMWaveformMarker, removing: Bool)
   /// Tells the delegate when the user changed the time of a marker, by dragging or tapping.
   ///
   /// - Parameter controller: The event source.
@@ -187,6 +222,10 @@ private class RDMWaveformMarkers {
       return true
     }
     return false
+  }
+
+  func removeAll() {
+    markers.removeAll()
   }
 
   func updateOrderIfNeeded(updated marker: RDMWaveformMarker) {

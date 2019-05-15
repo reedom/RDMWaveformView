@@ -9,6 +9,7 @@ import UIKit
 
 open class RDMWaveformMarkersContainer: UIView {
   public static let defaultMarkerColor = UIColor(red: 248/255, green: 206/255, blue: 70/255, alpha: 1)
+  public static let defaultMarkerTouchColor = UIColor(red: 218/255, green: 18/255, blue: 18/255, alpha: 1)
 
   // MARK: - Maker properties
 
@@ -19,6 +20,8 @@ open class RDMWaveformMarkersContainer: UIView {
   open var markerSize = CGSize(width: 8, height: 12)
   /// The color of a marker's triangle.
   open var markerColor = defaultMarkerColor
+  /// The color of a marker's triangle.
+  open var markerTouchColor = defaultMarkerTouchColor
   /// The color of a marker's vertical line.
   open var markerLineColor = defaultMarkerColor
   /// The width of a marker's vertical line.
@@ -150,6 +153,7 @@ extension RDMWaveformMarkersContainer {
         let markerView = RDMWaveformMarkerView(uuid: marker.uuid,
                                                touchRect: touchRect,
                                                markerColor: markerColor,
+                                               markerTouchColor: markerTouchColor,
                                                markerRect: markerRect,
                                                markerLineColor: markerLineColor,
                                                markerLineWidth: markerLineWidth,
@@ -191,6 +195,7 @@ extension RDMWaveformMarkersContainer {
       let markerView = RDMWaveformMarkerView(uuid: marker.uuid,
                                              touchRect: touchRect,
                                              markerColor: markerColor,
+                                             markerTouchColor: markerTouchColor,
                                              markerRect: markerRect,
                                              markerLineColor: markerLineColor,
                                              markerLineWidth: markerLineWidth,
@@ -294,12 +299,13 @@ extension RDMWaveformMarkersContainer: RDMWaveformMarkerViewDelegate {
   public func waveformMarkerView(_ waveformMarkerView: RDMWaveformMarkerView, didEndDrag uuid: String, point: CGPoint) {
     guard draggable else { return }
     draggingMarker = nil
+    let removing = point.y < 0
     if let marker = markersController?.find(uuid: uuid) {
-      markersController?.endDrag(marker)
+      markersController?.endDrag(marker, removing: removing)
     }
 
     // Remove the marker If the user drops the marker far above this view.
-    if point.y < 0 {
+    if removing {
       guard let marker = markersController?.find(uuid: uuid) else { return }
       markersController?.remove(marker)
     }

@@ -13,11 +13,24 @@ open class RDMWaveformMarkerView: UIView {
   public let uuid: String
   public let touchRect: CGRect
   public let markerColor: UIColor
+  public let markerTouchColor: UIColor
   public let markerRect: CGRect
   public let markerLineColor: UIColor
   public let markerLineWidth: CGFloat
 
   public weak var delegate: RDMWaveformMarkerViewDelegate?
+
+  private enum PressingType {
+    case touch
+    case pan
+  }
+  private var pressing = Set<PressingType>() {
+    didSet {
+      if pressing.isEmpty != oldValue.isEmpty {
+        setNeedsDisplay()
+      }
+    }
+  }
 
   // MARK: - Initialization
 
@@ -28,6 +41,7 @@ open class RDMWaveformMarkerView: UIView {
   public init(uuid: String,
               touchRect: CGRect,
               markerColor: UIColor,
+              markerTouchColor: UIColor,
               markerRect: CGRect,
               markerLineColor: UIColor,
               markerLineWidth: CGFloat,
@@ -35,6 +49,7 @@ open class RDMWaveformMarkerView: UIView {
     self.uuid = uuid
     self.touchRect = touchRect
     self.markerColor = markerColor
+    self.markerTouchColor = markerTouchColor
     self.markerRect = markerRect
     self.markerLineColor = markerLineColor
     self.markerLineWidth = markerLineWidth
@@ -59,7 +74,22 @@ open class RDMWaveformMarkerView: UIView {
 
 // MARK: - UI event handlers
 
-extension RDMWaveformMarkerView {
+extension RDMWaveformMarkerView: UIGestureRecognizerDelegate {
+  override open func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+    super.touchesBegan(touches, with: event)
+    pressing.insert(.touch)
+  }
+
+  override open func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+    super.touchesEnded(touches, with: event)
+    pressing.remove(.touch)
+  }
+
+  override open func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+    super.touchesCancelled(touches, with: event)
+    pressing.remove(.touch)
+  }
+
   @objc private func handleTap(_ recognizer: UITapGestureRecognizer) {
     delegate?.waveformMarkerView?(self, didTap: uuid)
   }
@@ -68,8 +98,10 @@ extension RDMWaveformMarkerView {
     let point = recognizer.location(in: superview)
     switch recognizer.state {
     case .began:
+      pressing.insert(.pan)
       delegate?.waveformMarkerView?(self, willBeginDrag: uuid, point: point)
     case .ended, .cancelled:
+      pressing.remove(.pan)
       delegate?.waveformMarkerView?(self, didEndDrag: uuid, point: point)
     case .changed:
       delegate?.waveformMarkerView?(self, didDrag: uuid, point: point)
@@ -94,11 +126,11 @@ extension RDMWaveformMarkerView {
     context.addLine(to: CGPoint(x: markerRect.maxX, y: markerRect.minY))
     context.closePath()
 
-    context.setFillColor(markerColor.cgColor)
+    context.setFillColor(pressing.isEmpty ? markerColor.cgColor : markerTouchColor.cgColor)
     context.fillPath()
 
     context.setLineWidth(markerLineWidth)
-    context.setStrokeColor(markerLineColor.cgColor)
+    context.setStrokeColor(pressing.isEmpty ? markerLineColor.cgColor : markerTouchColor.cgColor)
 
     context.move(to: CGPoint(x: markerRect.midX, y: markerRect.maxY))
     context.addLine(to: CGPoint(x: markerRect.midX, y: bounds.maxY))
