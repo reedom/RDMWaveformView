@@ -229,6 +229,29 @@ open class RDMScrollableWaveformView: UIView {
 }
 
 extension RDMScrollableWaveformView {
+  public func setMarkersAtBlanks(decibelLessThan: Double,
+                                 blankMomentLongerThan: TimeInterval) {
+    guard
+      showMarker,
+      let downsampler = downsampler,
+      let markersController = markersController,
+      let audioContext = audioContext
+      else { return }
+    downsampler.findBlankMoments(decibelLessThan: decibelLessThan,
+                                 blankMomentLongerThan: blankMomentLongerThan)
+    { [weak self] from, to in
+      guard self != nil else { return }
+      if 0 < from {
+        markersController.add(at: from, skip: true)
+      }
+      if to < audioContext.asset.duration.seconds {
+        markersController.add(at: to)
+      }
+    }
+  }
+}
+
+extension RDMScrollableWaveformView {
   override open func willMove(toWindow newWindow: UIWindow?) {
     super.willMove(toWindow: newWindow)
     if newWindow == nil {

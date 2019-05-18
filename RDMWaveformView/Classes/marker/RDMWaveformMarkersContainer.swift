@@ -244,6 +244,14 @@ extension RDMWaveformMarkersContainer: RDMWaveformMarkersControllerDelegate {
   public func waveformMarkersController(_ controller: RDMWaveformMarkersController, didRemove marker: RDMWaveformMarker) {
     removeMarkerView(marker: marker)
   }
+
+  public func waveformMarkersControllerDidRemoveAllMarkers(_ controller: RDMWaveformMarkersController) {
+    while !markerViews.isEmpty {
+      let (_, markerView) = markerViews.popFirst()!
+      markerView.delegate = nil
+      markerView.removeFromSuperview()
+    }
+  }
 }
 
 // MARK: - support addMarkerButton

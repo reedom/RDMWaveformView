@@ -47,7 +47,7 @@ public class RDMWaveformMarker: NSObject {
   weak var delegate: RDMWaveformMarkerDelegate?
 
   /// Initialize the instance.
-  public init(uuid: String, time: TimeInterval, data: Data? = nil, updated: Date? = nil) {
+  public init(uuid: String, time: TimeInterval, data: Data? = nil, skip: Bool? = false, updated: Date? = nil) {
     self.uuid = uuid
     self.time = time
     self.data = data
@@ -55,12 +55,20 @@ public class RDMWaveformMarker: NSObject {
   }
 
   /// Initialize the instance.
-  public init(time: TimeInterval, data: Data? = nil, updated: Date? = nil) {
-    self.uuid = UUID().uuidString
-    self.time = time
-    self.data = data
-    self.updatedAt = updated ?? Date()
+  public convenience init(time: TimeInterval, data: Data? = nil, skip: Bool? = false, updated: Date? = nil) {
+    self.init(uuid: UUID().uuidString, time: time, data: data, skip: skip, updated: updated)
   }
+
+  /// Initialize the instance.
+  public convenience init(time: TimeInterval, data: Data? = nil, updated: Date? = nil) {
+    self.init(uuid: UUID().uuidString, time: time, data: data, skip: false, updated: updated)
+  }
+
+  /// Initialize the instance.
+  public convenience init(time: TimeInterval, updated: Date? = nil) {
+    self.init(uuid: UUID().uuidString, time: time, data: nil, skip: false, updated: updated)
+  }
+
 
   static func ==(lhs: RDMWaveformMarker, rhs: RDMWaveformMarker) -> Bool {
     return lhs.uuid == rhs.uuid

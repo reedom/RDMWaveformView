@@ -41,6 +41,7 @@ extension RDMWaveformMarkersController {
   @discardableResult open func add(_ marker: RDMWaveformMarker) -> Bool {
     guard
       marker.delegate == nil,
+      _markers.findExact(marker.time) == nil,
       !_markers.contains(uuid: marker.uuid)
       else { return false }
 
@@ -53,7 +54,12 @@ extension RDMWaveformMarkersController {
     return true
   }
 
-  @discardableResult open func add(at time: TimeInterval, data: Data? = nil) -> RDMWaveformMarker {
+  @discardableResult open func add(at time: TimeInterval, data: Data? = nil) -> RDMWaveformMarker? {
+    return add(at: time, skip: false, data: data)
+  }
+
+  @discardableResult open func add(at time: TimeInterval, skip: Bool? = true, data: Data? = nil) -> RDMWaveformMarker? {
+    guard _markers.findExact(time) == nil else { return nil }
     let marker = RDMWaveformMarker(time: time, data: data)
     marker.delegate = self
     _markers.add(marker)
@@ -74,6 +80,15 @@ extension RDMWaveformMarkersController {
       delegate?.waveformMarkersController?(self, didRemove: marker)
     }
     return true
+  }
+
+  open func removeAll() {
+    for marker in markers {
+      marker.delegate = nil
+    }
+    _markers.removeAll()
+    observers.forEach({ $0.value?.waveformMarkersControllerDidRemoveAllMarkers?(self)})
+    delegate?.waveformMarkersControllerDidRemoveAllMarkers?(self)
   }
 
   open func replaceWith(_ markers: [RDMWaveformMarker]) {
@@ -114,6 +129,11 @@ extension RDMWaveformMarkersController {
   /// Look up any marker that places right after `time`.
   open func findAfter(_ time: TimeInterval) -> RDMWaveformMarker? {
     return _markers.findAfter(time)
+  }
+
+  /// Look up any marker that places right after `time`.
+  open func findExact(_ time: TimeInterval) -> RDMWaveformMarker? {
+    return _markers.findExact(time)
   }
 }
 
@@ -199,6 +219,10 @@ extension RDMWaveformMarkersController {
   /// - Parameter controller: The event source.
   /// - Parameter marker: The subject.
   @objc optional func waveformMarkersController(_ controller: RDMWaveformMarkersController, didRemove marker: RDMWaveformMarker)
+  /// Tells the delegate when the user removed all of `RDMWaveformMarker`
+  ///
+  /// - Parameter controller: The event source.
+  @objc optional func waveformMarkersControllerDidRemoveAllMarkers(_ controller: RDMWaveformMarkersController)
 }
 
 /// MARK: - RDMWaveformMarkers
@@ -268,5 +292,16 @@ private class RDMWaveformMarkers {
 
   func findAfter(_ time: TimeInterval) -> RDMWaveformMarker? {
     return markers.first(where: { time < $0.time })
+  }
+
+  func findExact(_ time: TimeInterval) -> RDMWaveformMarker? {
+    if let pos = markers.firstIndex(where: { time <= $0.time }) {
+      if time.isEqual(to: markers[pos].time) {
+        return markers[pos]
+      } else if 0 < pos && time.isEqual(to: markers[pos-1].time) {
+        return markers[pos-1]
+      }
+    }
+    return nil
   }
 }

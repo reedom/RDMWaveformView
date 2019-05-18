@@ -42,6 +42,12 @@ class RDMAudioDownsampler {
 
   // MARK: - Private variables
 
+  private var entireDownsampleRange: CountableRange<Int> {
+    let calc = RDMAudioDownsampleCalc(audioContext, downsampleRate)
+    let timeRange = 0 ..< Int(ceil(audioContext.asset.duration.seconds))
+    return calc.downsampleRangeFrom(timeRange: timeRange)
+  }
+
   /// Records already processed sample ranges.
   private var handledRanges = SparseCountableRange<Int>()
   /// A collection of downsampled data.
@@ -49,9 +55,13 @@ class RDMAudioDownsampler {
   /// A collection of running `RDMAudioLoadOperation`.
   private var operations = [RDMAudioLoadOperation]()
 
+  private var loadedAll = false
+
   typealias Callback = (
     _ downsampleRange: DownsampleRange,
     _ downsamples: ArraySlice<CGFloat>) -> Void
+
+  typealias OnComplete = () -> Void
 
   // MARK: - Initializer
 
@@ -111,7 +121,7 @@ class RDMAudioDownsampler {
   /// - Parameter callback: called every times when `RDMAudioDownsampler` makes
   ///             a chunk of downsampling data.
   public func downsample(timeRange: TimeRange,
-                         onComplete: @escaping () -> Void,
+                         onComplete: @escaping OnComplete,
                          callback: @escaping Callback) {
     let firstCall = downsamples.isEmpty
 
@@ -148,14 +158,93 @@ class RDMAudioDownsampler {
     } else {
       onLocalCompleted()
     }
-
   }
 
   /// Start downsampling the entire audio track.
   public func downsampleAll() {
-    if let notFounds = handledRanges.differentials(0 ..< audioContext.totalSamples) {
-      notFounds.forEach { (samplesRange) in
-        invokeOperation(samplesRange, onComplete: {}) { ( _, _ ) in }
+    downsampleAll(onComplete: {})
+  }
+
+  /// Start downsampling the entire audio track.
+  public func downsampleAll(onComplete: @escaping OnComplete) {
+    guard !loadedAll, let notFounds = handledRanges.differentials(entireDownsampleRange) else {
+      onComplete()
+      return
+    }
+    var tasks: Int32 = 0
+
+    let completed = { [weak self] in
+      guard let self = self else { return }
+      if OSAtomicDecrement32(&tasks) == 0 {
+        self.loadedAll = true
+        onComplete()
+      }
+    }
+
+    let calc = RDMAudioDownsampleCalc(audioContext, downsampleRate)
+    notFounds.forEach { (downsampleRange) in
+      OSAtomicIncrement32(&tasks)
+      let timeRange = calc.timeRangeFrom(downsampleRange: downsampleRange)
+      invokeOperation(timeRange, onComplete:completed) { ( _, _ ) in }
+    }
+  }
+
+  // FIXME use NSOperation
+  public func findBlankMoments(decibelLessThan: Double,
+                               blankMomentLongerThan: TimeInterval,
+                               callback: @escaping (TimeInterval, TimeInterval) -> Void) {
+    if !loadedAll && handledRanges.differentials(entireDownsampleRange) != nil {
+      downsampleAll { [weak self] in
+        guard let self = self else { return }
+        self.findBlankMoments(decibelLessThan: decibelLessThan,
+                              blankMomentLongerThan: blankMomentLongerThan,
+                              callback: callback)
+      }
+      return
+    }
+
+    let notify = { (_ from: TimeInterval, _ to: TimeInterval) in
+      DispatchQueue.main.async {
+        callback(from, to)
+      }
+    }
+
+    let audioContext = self.audioContext
+    let downsampleRate = self.downsampleRate
+    let downsamples = self.downsamples
+    DispatchQueue.global().async { [weak self] in
+      guard self != nil else { return }
+      let calc = RDMAudioDownsampleCalc(audioContext, downsampleRate)
+      let secPerSample = 1 / TimeInterval(audioContext.sampleRate) * TimeInterval(calc.downsampleRate)
+      print("secPerSample = \(secPerSample)")
+
+      let minLevel = CGFloat(decibelLessThan)
+
+      var currentTime: TimeInterval = 0
+      var muteStart: TimeInterval?
+      var muteDuration: TimeInterval = 0
+
+      for decibel in downsamples {
+        // print("\(currentTime): decibel=\(decibel), mute=\(muteDuration)")
+        if decibel < minLevel {
+          if muteStart == nil {
+            muteStart = currentTime
+          }
+          muteDuration += secPerSample
+          currentTime += secPerSample
+          continue
+        }
+
+        if let muteStart = muteStart, blankMomentLongerThan < muteDuration {
+          notify(muteStart, muteStart + muteDuration)
+        }
+        currentTime += secPerSample
+        muteStart = nil
+        muteDuration = 0
+      }
+
+      if let muteStart = muteStart, blankMomentLongerThan < muteDuration {
+        notify(muteStart, muteStart + muteDuration)
       }
     }
   }
@@ -166,6 +255,7 @@ class RDMAudioDownsampler {
     var completed = false
     var taskCount: Int32 = 0
     var called: Int32 = 0
+    var upperBound: Int = 0
 
     let operation = RDMAudioLoadOperation(audioContext: audioContext,
                                           timeRange: timeRange,
@@ -189,6 +279,7 @@ class RDMAudioDownsampler {
         if let downsamples = downsamples {
           callback(downsampleRange, downsamples[0..<downsamples.count])
         }
+        upperBound = max(upperBound, downsampleRange.upperBound)
         if OSAtomicDecrement32(&taskCount) == 0 && completed {
           if OSAtomicIncrement32(&called) == 1 {
             onComplete()
@@ -198,11 +289,25 @@ class RDMAudioDownsampler {
     }
 
     operation.completionBlock = { [weak self] in
-      guard self != nil else { return }
+      guard let self = self else { return }
+
+      if Int(ceil(self.audioContext.asset.duration.seconds)) <= timeRange.upperBound {
+        // when it has readed the tail of the track
+        if upperBound < self.downsamples.count {
+          // self.downsamples has extra elements. Let's drop them.
+          // self.handledRanges.subtract(upperBound ..< self.downsamples.count)
+          DispatchQueue.main.async {
+            self.downsamples.removeLast(self.downsamples.count - upperBound)
+          }
+        }
+      }
+
       completed = true
       if taskCount == 0 {
         if OSAtomicIncrement32(&called) == 1 {
-          onComplete()
+          DispatchQueue.main.async {
+            onComplete()
+          }
         }
       }
     }
