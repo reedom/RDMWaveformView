@@ -4,21 +4,21 @@ import Quick
 import Nimble
 @testable import RDMWaveformView
 
-class SampleBufferSpecs: QuickSpec {
+class BufferIterationHelperSpecs: QuickSpec {
   override func spec() {
-    describe("SampleBuffer") {
+    describe("BufferIterationHelper") {
       let source: [UInt8] = [ 1, 2, 3, 4, 5 ]
 
       it("recycles the inner buffer") {
         var actual1: Data?
         var actual2: Data?
-        let buffer = SampleBuffer(bufferSize: 3, onPopulated: { data in
+        let buffer = BufferIterationHelper(bufferSize: 3) { data in
           if actual1 == nil {
             actual1 = data
           } else {
             actual2 = data
           }
-        })
+        }
 
         source[0..<2].withUnsafeBufferPointer { buffer.append($0) }
         source.withUnsafeBufferPointer { buffer.append($0) }

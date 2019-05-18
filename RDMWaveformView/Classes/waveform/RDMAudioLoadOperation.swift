@@ -117,8 +117,8 @@ final public class RDMAudioLoadOperation: Operation {
 
     let calc = RDMAudioDownsampleCalc(audioContext, downsampleRate)
     var downsampleIndex = calc.downsampleRangeFrom(timeRange: timeRange).lowerBound
-    readSamples(duration, readUnit) { [weak self] (sampleBuffer) in
-      guard let self = self else { return }
+    audioContext.iterateSampleData(duration: duration, unitCount: readUnit) { [weak self] (sampleBuffer) in
+      guard let self = self else { return false }
       let downsampleCount = (readUnit <= sampleBuffer.count) ? sampleBuffer.count / readUnit : 1
       let downsampleRate  = (readUnit <= sampleBuffer.count) ? downsampleUnit : sampleBuffer.count / MemoryLayout<Int16>.size
       let downsamples = self.downsample(fromData: sampleBuffer,
@@ -128,67 +128,7 @@ final public class RDMAudioLoadOperation: Operation {
       let downsampleRange = downsampleIndex ..< downsampleIndex + downsamples.count
        self.callback(self, downsampleRange, downsamples)
       downsampleIndex += downsamples.count
-      guard !self.isCancelled else { return }
-    }
-  }
-
-  private func readSamples(_ duration: CMTimeRange,
-                           _ readUnit: Int,
-                           onRead: @escaping (_ sampleBuffer: Data) -> Void) {
-    guard
-      !timeRange.isEmpty,
-      0 < downsampleRate,
-      let reader = try? AVAssetReader(asset: audioContext.asset)
-      else { return }
-
-    let outputSettingsDict: [String : Any] = [
-      AVFormatIDKey: Int(kAudioFormatLinearPCM),
-      AVLinearPCMBitDepthKey: 16,
-      AVLinearPCMIsBigEndianKey: false,
-      AVLinearPCMIsFloatKey: false,
-      AVLinearPCMIsNonInterleaved: false
-    ]
-
-    let readerOutput = AVAssetReaderTrackOutput(track: audioContext.assetTrack, outputSettings: outputSettingsDict)
-    readerOutput.alwaysCopiesSampleData = false
-    reader.add(readerOutput)
-
-    // 16-bit samples
-    reader.timeRange = duration
-    reader.startReading()
-    defer { reader.cancelReading() } // Cancel reading if we exit early if operation is cancelled
-
-    let sampleBuffer = SampleBuffer(bufferSize: readUnit) { onRead($0) }
-
-    var remainBytes = Int(ceil(duration.duration.seconds * Double(audioContext.sampleRate))) * audioContext.channelCount * MemoryLayout<Int16>.size
-    while reader.status == .reading {
-      guard !isCancelled, 0 < remainBytes else { return }
-
-      guard
-        let readSampleBuffer = readerOutput.copyNextSampleBuffer(),
-        let readBuffer = CMSampleBufferGetDataBuffer(readSampleBuffer)
-        else { break }
-
-      // Append audio sample buffer into our current sample buffer
-      var readBufferLength = 0
-      var readBufferPointer: UnsafeMutablePointer<Int8>?
-      CMBlockBufferGetDataPointer(readBuffer,
-                                  atOffset: 0,
-                                  lengthAtOffsetOut: &readBufferLength,
-                                  totalLengthOut: nil,
-                                  dataPointerOut: &readBufferPointer)
-      let appendLength = min(readBufferLength, remainBytes)
-      remainBytes -= appendLength
-      sampleBuffer.append(UnsafeBufferPointer(start: readBufferPointer, count: appendLength))
-      CMSampleBufferInvalidate(readSampleBuffer)
-    }
-
-    sampleBuffer.flush()
-
-    // if (reader.status == AVAssetReaderStatusFailed || reader.status == AVAssetReaderStatusUnknown)
-    // Something went wrong. Handle it, or not depending on if you can get above to work
-    if reader.status != .completed {
-      NSLog("RDMWaveformRenderOperation ends not in completed state: \(String(describing: reader.error))")
+      return !self.isCancelled
     }
   }
 
@@ -238,41 +178,3 @@ final public class RDMAudioLoadOperation: Operation {
   }
 }
 
-class SampleBuffer {
-  typealias OnPopulated = (_ data: Data) -> Void
-  private(set) var pos: Int = 0
-  private(set) var buffer: Data
-  private let onPopulated: OnPopulated
-
-  init(bufferSize: Int, onPopulated: @escaping OnPopulated) {
-    self.buffer = Data(count: bufferSize)
-    self.onPopulated = onPopulated
-  }
-
-  func append<E>(_ data: UnsafeBufferPointer<E>) {
-    let remaining = buffer.count - pos
-    if data.count < remaining {
-      buffer.replaceSubrange(pos..<pos+data.count, with: data)
-      pos += data.count
-      return
-    }
-
-    let chunk = UnsafeBufferPointer(rebasing: data[0..<remaining])
-    buffer.replaceSubrange(pos..<buffer.count, with: chunk)
-    pos = 0
-    onPopulated(buffer)
-
-    if remaining < data.count {
-      let chunk = UnsafeBufferPointer(rebasing: data[remaining..<data.count])
-      append(chunk)
-    }
-  }
-
-  func flush() {
-    if 0 < pos {
-      let len = pos
-      pos = 0
-      onPopulated(buffer[0..<len])
-    }
-  }
-}

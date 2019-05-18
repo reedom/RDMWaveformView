@@ -28,6 +28,7 @@ public struct RDMAudioContext {
 }
 
 extension RDMAudioContext {
+  /// Load audio track from the specified URL.
   public static func load(fromAudioURL audioURL: URL, completionHandler: @escaping (_ audioContext: Result<RDMAudioContext, RDMAudioError>) -> ()) {
     let asset = AVURLAsset(url: audioURL, options: [AVURLAssetPreferPreciseDurationAndTimingKey: NSNumber(value: true)])
 
@@ -66,6 +67,118 @@ extension RDMAudioContext {
       } else {
         completionHandler(.failure(RDMAudioError("Failed to load the audio track")))
       }
+    }
+  }
+}
+
+extension RDMAudioContext {
+  /// The type of the block which receives sample data.
+  ///
+  /// - Parameter sampleData: sample data.
+  /// - Returns: `true` to continue iterating, `false` to stop iterating.
+  public typealias IterateSampleDataHandler = (_ sampleData: Data) -> Bool
+
+  /// Read the loaded audio track and extract sample data.
+  ///
+  /// - Parameter duration: the time range to walk through.
+  /// - Parameter unitCount: `sampleDataHandler` receives this amount of sample data
+  ///                        every time as it reads the audio track. But on the last
+  //                         call, the sample data might be shorter.
+  /// - Parameter sampleDataHandler: A handler to receive sample data repitively.
+  public func iterateSampleData(duration: CMTimeRange, unitCount: Int, sampleDataHandler: @escaping IterateSampleDataHandler) {
+    guard
+      let reader = try? AVAssetReader(asset: asset),
+      0 < unitCount
+      else { return }
+
+    let outputSettingsDict: [String : Any] = [
+      AVFormatIDKey: Int(kAudioFormatLinearPCM),
+      AVLinearPCMBitDepthKey: 16,
+      AVLinearPCMIsBigEndianKey: false,
+      AVLinearPCMIsFloatKey: false,
+      AVLinearPCMIsNonInterleaved: false
+    ]
+
+    let readerOutput = AVAssetReaderTrackOutput(track: assetTrack, outputSettings: outputSettingsDict)
+    readerOutput.alwaysCopiesSampleData = false
+    reader.add(readerOutput)
+
+    // 16-bit samples
+    reader.timeRange = duration
+    reader.startReading()
+    defer { reader.cancelReading() } // Cancel reading if we exit early if operation is cancelled
+
+    var cancelled = false
+    let sampleBuffer = BufferIterationHelper(bufferSize: unitCount) { cancelled = !sampleDataHandler($0) }
+
+    var remainBytes = Int(ceil(duration.duration.seconds * Double(sampleRate))) * channelCount * MemoryLayout<Int16>.size
+    while reader.status == .reading {
+      guard !cancelled, 0 < remainBytes else { return }
+
+      guard
+        let readSampleBuffer = readerOutput.copyNextSampleBuffer(),
+        let readBuffer = CMSampleBufferGetDataBuffer(readSampleBuffer)
+        else { break }
+
+      // Append audio sample buffer into our current sample buffer
+      var readBufferLength = 0
+      var readBufferPointer: UnsafeMutablePointer<Int8>?
+      CMBlockBufferGetDataPointer(readBuffer,
+                                  atOffset: 0,
+                                  lengthAtOffsetOut: &readBufferLength,
+                                  totalLengthOut: nil,
+                                  dataPointerOut: &readBufferPointer)
+      let appendLength = min(readBufferLength, remainBytes)
+      remainBytes -= appendLength
+      sampleBuffer.append(UnsafeBufferPointer(start: readBufferPointer, count: appendLength))
+      CMSampleBufferInvalidate(readSampleBuffer)
+    }
+
+    sampleBuffer.flush()
+
+    // if (reader.status == AVAssetReaderStatusFailed || reader.status == AVAssetReaderStatusUnknown)
+    // Something went wrong. Handle it, or not depending on if you can get above to work
+    if reader.status != .completed {
+      NSLog("RDMWaveformRenderOperation ends not in completed state: \(String(describing: reader.error))")
+    }
+  }
+}
+
+class BufferIterationHelper {
+  typealias ChunkHandler = (_ data: Data) -> Void
+  private(set) var pos: Int = 0
+  private(set) var buffer: Data
+  private let chunkHandler: ChunkHandler
+
+  init(bufferSize: Int, chunkHandler: @escaping ChunkHandler) {
+    self.buffer = Data(count: bufferSize)
+    self.chunkHandler = chunkHandler
+  }
+
+  func append<E>(_ data: UnsafeBufferPointer<E>) {
+    let remaining = buffer.count - pos
+    if data.count < remaining {
+      buffer.replaceSubrange(pos..<pos+data.count, with: data)
+      pos += data.count
+      return
+    }
+
+    let chunk = UnsafeBufferPointer(rebasing: data[0..<remaining])
+    buffer.replaceSubrange(pos..<buffer.count, with: chunk)
+    pos = 0
+    chunkHandler(buffer)
+
+    if remaining < data.count {
+      let chunk = UnsafeBufferPointer(rebasing: data[remaining..<data.count])
+      append(chunk)
+    }
+  }
+
+  func flush() {
+    if 0 < pos {
+      let len = pos
+      pos = 0
+      chunkHandler(buffer[0..<len])
     }
   }
 }
