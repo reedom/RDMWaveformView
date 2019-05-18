@@ -81,14 +81,13 @@ extension RDMAudioContext {
   /// Read the loaded audio track and extract sample data.
   ///
   /// - Parameter duration: the time range to walk through.
-  /// - Parameter unitCount: `sampleDataHandler` receives this amount of sample data
-  ///                        every time as it reads the audio track. But on the last
-  //                         call, the sample data might be shorter.
+  /// - Parameter unitLength: The data length that `sampleDataHandler` receives at a time.
+  ///                         But on the last iteration the data might be shorter.
   /// - Parameter sampleDataHandler: A handler to receive sample data repitively.
-  public func iterateSampleData(duration: CMTimeRange, unitCount: Int, sampleDataHandler: @escaping IterateSampleDataHandler) {
+  public func iterateSampleData(duration: CMTimeRange, unitLength: Int, sampleDataHandler: @escaping IterateSampleDataHandler) {
     guard
       let reader = try? AVAssetReader(asset: asset),
-      0 < unitCount
+      0 < unitLength
       else { return }
 
     let outputSettingsDict: [String : Any] = [
@@ -109,7 +108,7 @@ extension RDMAudioContext {
     defer { reader.cancelReading() } // Cancel reading if we exit early if operation is cancelled
 
     var cancelled = false
-    let sampleBuffer = BufferIterationHelper(bufferSize: unitCount) { cancelled = !sampleDataHandler($0) }
+    let sampleBuffer = BufferIterationHelper(bufferSize: unitLength) { cancelled = !sampleDataHandler($0) }
 
     var remainBytes = Int(ceil(duration.duration.seconds * Double(sampleRate))) * channelCount * MemoryLayout<Int16>.size
     while reader.status == .reading {

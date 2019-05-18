@@ -117,7 +117,7 @@ final public class RDMAudioDownsampleOperation: Operation {
 
     let calc = RDMAudioDownsampleCalc(audioContext, downsampleRate)
     var downsampleIndex = calc.downsampleRangeFrom(timeRange: timeRange).lowerBound
-    audioContext.iterateSampleData(duration: duration, unitCount: readUnit) { [weak self] (sampleBuffer) in
+    audioContext.iterateSampleData(duration: duration, unitLength: readUnit) { [weak self] (sampleBuffer) in
       guard let self = self else { return false }
       let downsampleCount = (readUnit <= sampleBuffer.count) ? sampleBuffer.count / readUnit : 1
       let downsampleRate  = (readUnit <= sampleBuffer.count) ? downsampleUnit : sampleBuffer.count / MemoryLayout<Int16>.size
