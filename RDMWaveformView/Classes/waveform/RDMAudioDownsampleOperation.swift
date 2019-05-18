@@ -7,7 +7,7 @@ import AVFoundation
 import Accelerate
 
 /// Operation used for rendering waveform images
-final public class RDMAudioLoadOperation: Operation {
+final public class RDMAudioDownsampleOperation: Operation {
   public enum OperationState {
     case idle
     case executing
@@ -40,7 +40,7 @@ final public class RDMAudioLoadOperation: Operation {
   public override var isFinished: Bool { return state == .finished }
 
   public typealias Callback = (
-    _ operation: RDMAudioLoadOperation,
+    _ operation: RDMAudioDownsampleOperation,
     _ downsampleRange: DownsampleRange,
     _ downsamples: [CGFloat]?) -> Void
 

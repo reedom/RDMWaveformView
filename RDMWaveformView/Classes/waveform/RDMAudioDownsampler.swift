@@ -53,7 +53,7 @@ class RDMAudioDownsampler {
   /// A collection of downsampled data.
   private var downsamples: [CGFloat]
   /// A collection of running `RDMAudioLoadOperation`.
-  private var operations = [RDMAudioLoadOperation]()
+  private var operations = [RDMAudioDownsampleOperation]()
 
   private var loadedAll = false
 
@@ -257,7 +257,7 @@ class RDMAudioDownsampler {
     var called: Int32 = 0
     var upperBound: Int = 0
 
-    let operation = RDMAudioLoadOperation(audioContext: audioContext,
+    let operation = RDMAudioDownsampleOperation(audioContext: audioContext,
                                           timeRange: timeRange,
                                           downsampleRate: downsampleRate,
                                           decibelMax: decibelMax,

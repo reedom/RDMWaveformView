@@ -25,7 +25,7 @@ class RDMAudioLoadOperationSpecs: QuickSpec {
           self.getAudioContext { audioContext in
             var range = SparseCountableRange<Int>()
             var count = 0
-            let operation = RDMAudioLoadOperation(audioContext: audioContext,
+            let operation = RDMAudioDownsampleOperation(audioContext: audioContext,
                                                   timeRange: 1..<4,
                                                   downsampleRate: 32000/25,
                                                   decibelMax: -50,
