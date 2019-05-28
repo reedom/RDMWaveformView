@@ -12,8 +12,8 @@ import MediaPlayer
 
 class ViewController: UIViewController {
 
-  var scrollableWaveformView: RDMScrollableWaveformView!
-  var waveformView: RDMWaveformView!
+  var scrollableWaveformView: ScrollableWaveformView!
+  var waveformView: WaveformView!
   var loadingStartTime: Date!
   var downsampleStartTime: Date!
   var renderingStartTime: Date!
@@ -29,13 +29,13 @@ class ViewController: UIViewController {
 
     view.backgroundColor = UIColor.black
 
-    let controller = RDMWaveformController()
+    let controller = AudioDataController()
     controller.delegate = self
-    let markers = RDMWaveformMarkersController()
+    let markers = MarkersController()
     markers.add(at: 6, data: nil)
 
     scrollableWaveformView = {
-      let waveformView = RDMScrollableWaveformView()
+      let waveformView = ScrollableWaveformView()
       view.addSubview(waveformView)
 
       waveformView.guageView.backgroundColor = UIColor.black
@@ -51,7 +51,7 @@ class ViewController: UIViewController {
     }()
 
     waveformView = {
-      let waveformView = RDMWaveformView()
+      let waveformView = WaveformView()
       view.addSubview(waveformView)
 
       waveformView.controller = controller
@@ -161,8 +161,12 @@ class ViewController: UIViewController {
       return
     }
 
-    controller.load(url) { (error) in
-      if let error = error {
+    AudioContext.load(fromAudioURL: url) { [weak self] result in
+      guard self != nil else { return }
+      switch result {
+      case .success(let audioContext):
+        controller.audioContext = audioContext
+      case .failure(let error):
         print(error)
       }
     }
@@ -192,8 +196,12 @@ class ViewController: UIViewController {
       return
     }
 
-    controller.load(url) { (error) in
-      if let error = error {
+    AudioContext.load(fromAudioURL: url) { [weak self] result in
+      guard self != nil else { return }
+      switch result {
+      case .success(let audioContext):
+        controller.audioContext = audioContext
+      case .failure(let error):
         print(error)
       }
     }
@@ -226,22 +234,22 @@ extension ViewController: AVAudioPlayerDelegate {
   }
 }
 
-extension ViewController: RDMWaveformControllerDelegate {
-  public func waveformController(_ controller: RDMWaveformController, didUpdateTime time: TimeInterval, seekMode: Bool) {
+extension ViewController: AudioDataControllerDelegate {
+  public func audioDataController(_ controller: AudioDataController, didUpdateTime time: TimeInterval, seekMode: Bool) {
     timeLabel.text = getTimeString(time)
     if !player.isPlaying {
       player.currentTime = time
     }
   }
 
-  public func waveformControllerDidEnterSeekMode(_ controller: RDMWaveformController) {
+  public func audioDataControllerDidEnterSeekMode(_ controller: AudioDataController) {
     if player.isPlaying {
       needsToResumeAudio = true
       player.stop()
     }
   }
 
-  public func waveformControllerDidLeaveSeekMode(_ controller: RDMWaveformController) {
+  public func audioDataControllerDidLeaveSeekMode(_ controller: AudioDataController) {
     if needsToResumeAudio {
       needsToResumeAudio = false
       handlePlay()
@@ -252,7 +260,7 @@ extension ViewController: RDMWaveformControllerDelegate {
 extension ViewController {
   @objc func handlePlay() {
     guard let controller = scrollableWaveformView.controller else { return }
-    if controller.seekMode {
+    if controller.time.seeking {
       needsToResumeAudio = true
     } else {
       player.play()
@@ -279,7 +287,7 @@ extension ViewController {
 
     player.currentTime = player.currentTime - 6
     if !player.isPlaying {
-      controller.currentTime = player.currentTime
+      controller.time.currentTime = player.currentTime
     }
   }
 
@@ -288,13 +296,13 @@ extension ViewController {
 
     player.currentTime = player.currentTime + 6
     if !player.isPlaying {
-      controller.currentTime = player.currentTime
+      controller.time.currentTime = player.currentTime
     }
   }
 
   @objc func handleTimer() {
     guard let controller = scrollableWaveformView.controller else { return }
-    controller.currentTime = player.currentTime
+    controller.time.currentTime = player.currentTime
   }
 
   func getTimeString(_ seconds: Double) -> String {

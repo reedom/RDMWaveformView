@@ -1,0 +1,267 @@
+//
+//  MarkersController.swift
+//  RDMWaveformView
+//
+//  Created by HANAI Tohru on 2019/05/20.
+//
+
+/// `MarkersController` holds a number of `Marker` instances
+/// and is responsible to find and update any of them and also it notifies any
+/// actions upon the markers.
+open class MarkersController: NSObject {
+  /// MARK: - Properties
+
+  /// The delegate of this object.
+  open weak var delegate: MarkersControllerDelegate?
+
+  /// A list of `MarkersControllerDelegate`.
+  ///
+  /// The observers will be notified as same as the `delegate`.
+  /// The only difference is that `observers` is only available for internal classes
+  /// in this package.
+  private var observers = Set<WeakDelegateRef<MarkersControllerDelegate>>()
+
+  /// Under loading mode, `MarkersController` suppresses notifications.
+  private var loading = false
+
+  /// A collection of `Marker`.
+  private var _markers = Markers()
+  /// An iterator of the `Marker` collection.
+  /// The collection is sorted by `Marker.time` ascending order.
+  public var markers: IndexingIterator<[Marker]> {
+    return _markers.makeIterator()
+  }
+  /// Indicates whether the user is dragging a marker.
+  public private(set) var dragging: Bool = false
+}
+
+/// MARK: - Updating markers
+
+extension MarkersController {
+  @discardableResult open func add(_ marker: Marker) -> Bool {
+    guard
+      marker.delegate == nil,
+      _markers.findExact(marker.time) == nil,
+      !_markers.contains(uuid: marker.uuid)
+      else { return false }
+
+    marker.delegate = self
+    _markers.add(marker)
+    observers.forEach({ $0.value?.markersController?(self, didAdd: marker)})
+    if !loading {
+      delegate?.markersController?(self, didAdd: marker)
+    }
+    return true
+  }
+
+  @discardableResult open func add(at time: TimeInterval, data: Data? = nil) -> Marker? {
+    return add(at: time, skip: false, data: data)
+  }
+
+  @discardableResult open func add(at time: TimeInterval, skip: Bool? = true, data: Data? = nil) -> Marker? {
+    guard _markers.findExact(time) == nil else { return nil }
+    let marker = Marker(time: time, data: data)
+    marker.delegate = self
+    _markers.add(marker)
+
+    observers.forEach({ $0.value?.markersController?(self, didAdd: marker)})
+    if !loading {
+      delegate?.markersController?(self, didAdd: marker)
+    }
+    return marker
+  }
+
+  @discardableResult open func remove(_ marker: Marker) -> Bool {
+    guard _markers.remove(marker) else { return false }
+
+    marker.delegate = nil
+    observers.forEach({ $0.value?.markersController?(self, didRemove: marker)})
+    if !loading {
+      delegate?.markersController?(self, didRemove: marker)
+    }
+    return true
+  }
+
+  open func removeAll() {
+    for marker in markers {
+      marker.delegate = nil
+    }
+    _markers.removeAll()
+    observers.forEach({ $0.value?.markersControllerDidRemoveAllMarkers?(self)})
+    delegate?.markersControllerDidRemoveAllMarkers?(self)
+  }
+
+  open func replaceWith(_ markers: [Marker]) {
+    loading = true
+    defer { loading = false }
+
+    for updated in markers {
+      if let current = _markers.find(uuid: updated.uuid) {
+        if current.updatedAt < updated.updatedAt {
+          current.copyPropertiesFrom(updated)
+        } else {
+        }
+      } else {
+        add(updated)
+      }
+    }
+
+    for marker in _markers.makeIterator() {
+      guard !markers.contains(where: { $0.uuid == marker.uuid }) else { continue }
+      remove(marker)
+    }
+  }
+}
+
+/// MARK: - Finding markers
+
+extension MarkersController {
+  /// Find a maker by `uuid`.
+  open func find(uuid: String) -> Marker? {
+    return _markers.find(uuid: uuid)
+  }
+
+  /// Look up any marker that places right before `time`.
+  open func findBefore(_ time: TimeInterval) -> Marker? {
+    return _markers.findBefore(time)
+  }
+
+  /// Look up any marker that places right after `time`.
+  open func findAfter(_ time: TimeInterval) -> Marker? {
+    return _markers.findAfter(time)
+  }
+
+  /// Look up any marker that places right after `time`.
+  open func findExact(_ time: TimeInterval) -> Marker? {
+    return _markers.findExact(time)
+  }
+}
+
+/// MARK: - Dragging support
+extension MarkersController {
+  func beginDrag(_ marker: Marker) {
+    dragging = true
+    delegate?.markersController?(self, willBeginDrag: marker)
+  }
+
+  func endDrag(_ marker: Marker, removing: Bool) {
+    dragging = false
+    delegate?.markersController?(self, didEndDrag: marker, removing: removing)
+  }
+}
+
+/// MARK: - MarkerDelegate
+
+extension MarkersController: MarkerDelegate {
+  func markerDidUpdateTime(_ marker: Marker) {
+    _markers.updateOrderIfNeeded(updated: marker)
+
+    observers.forEach({ $0.value?.markersController?(self, didUpdateTime: marker)})
+    if !loading {
+      delegate?.markersController?(self, didUpdateTime: marker)
+    }
+  }
+
+  func markerDidUpdateData(_ marker: Marker) {
+    observers.forEach({ $0.value?.markersController?(self, didUpdateData: marker)})
+    if !loading {
+      delegate?.markersController?(self, didUpdateData: marker)
+    }
+  }
+}
+
+extension MarkersController {
+  func subscribe(_ delegate: MarkersControllerDelegate) {
+    observers.insert(WeakDelegateRef(value: delegate))
+  }
+
+  func unsubscribe(_ delegate: MarkersControllerDelegate) {
+    while let index = observers.firstIndex(where: { (ref) -> Bool in
+      guard let val = ref.value else { return true }
+      return val.hash == delegate.hash
+    }) {
+      observers.remove(at: index)
+    }
+  }
+}
+
+/// MARK: - Markers
+
+/// `Markers` holds a collection of `Marker`, sorted by
+/// `Marker.time` ascending order.
+private class Markers {
+  private var markers = [Marker]()
+
+  func add(_ marker: Marker) {
+    if let pos = markers.firstIndex(where: { marker.time <= $0.time }) {
+      markers.insert(marker, at: pos)
+    } else {
+      markers.append(marker)
+    }
+  }
+
+  func remove(_ marker: Marker) -> Bool {
+    if let pos = markers.firstIndex(where: { $0.uuid == marker.uuid }) {
+      markers.remove(at: pos)
+      return true
+    }
+    return false
+  }
+
+  func removeAll() {
+    markers.removeAll()
+  }
+
+  func updateOrderIfNeeded(updated marker: Marker) {
+    guard let pos = markers.firstIndex(where: { $0.uuid == marker.uuid }) else { return }
+
+    var valid = true
+    if 0 < pos && marker.time < markers[pos-1].time {
+      valid = false
+    } else if pos + 1 < markers.count  && markers[pos+1].time < marker.time {
+      valid = false
+    }
+
+    if !valid {
+      markers.remove(at: pos)
+      add(marker)
+    }
+  }
+
+  func contains(uuid: String) -> Bool {
+    return markers.firstIndex(where: { $0.uuid == uuid }) != nil
+  }
+
+  func makeIterator() -> IndexingIterator<[Marker]> {
+    return markers.makeIterator()
+  }
+
+  func find(uuid: String) -> Marker? {
+    return markers.first(where: { $0.uuid == uuid })
+  }
+
+  func findBefore(_ time: TimeInterval) -> Marker? {
+    if let pos = markers.firstIndex(where: { time <= $0.time }) {
+      return 0 < pos ? markers[pos-1] : nil
+    } else if !markers.isEmpty {
+      return markers.last!
+    } else {
+      return nil
+    }
+  }
+
+  func findAfter(_ time: TimeInterval) -> Marker? {
+    return markers.first(where: { time < $0.time })
+  }
+
+  func findExact(_ time: TimeInterval) -> Marker? {
+    if let pos = markers.firstIndex(where: { time <= $0.time }) {
+      if time.isEqual(to: markers[pos].time) {
+        return markers[pos]
+      } else if 0 < pos && time.isEqual(to: markers[pos-1].time) {
+        return markers[pos-1]
+      }
+    }
+    return nil
+  }
+}

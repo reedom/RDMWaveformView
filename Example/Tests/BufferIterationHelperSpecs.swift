@@ -12,7 +12,7 @@ class BufferIterationHelperSpecs: QuickSpec {
       it("recycles the inner buffer") {
         var actual1: Data?
         var actual2: Data?
-        let buffer = BufferIterationHelper(bufferSize: 3) { data in
+        let buffer = BufferIterationHelper(bufferSize: 3) { (data, lastCall) in
           if actual1 == nil {
             actual1 = data
           } else {

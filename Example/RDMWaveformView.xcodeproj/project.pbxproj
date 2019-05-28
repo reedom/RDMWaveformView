@@ -8,18 +8,21 @@
 
 /* Begin PBXBuildFile section */
 		04B904CBC97A4CC1C447380D /* Pods_RDMWaveformView_Example.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B5A4C5B504D3B202D655E87 /* Pods_RDMWaveformView_Example.framework */; };
+		07027825229BDCE100830978 /* AudioContextSpecs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07027824229BDCE100830978 /* AudioContextSpecs.swift */; };
+		07027827229BE52400830978 /* AudioSpecsBase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07027826229BE52400830978 /* AudioSpecsBase.swift */; };
 		0758FA29228909510040CBDC /* BufferIterationHelperSpecs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0758FA28228909510040CBDC /* BufferIterationHelperSpecs.swift */; };
 		0773CF002265BC850061941B /* file_example_MP3_700KB.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 0773CEFF2265BC840061941B /* file_example_MP3_700KB.mp3 */; };
-		077FAF89228542400094A704 /* RDMWaveformMarkerSpecs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 077FAF88228542400094A704 /* RDMWaveformMarkerSpecs.swift */; };
-		077FAF8B22854BE30094A704 /* RDMAudioLoadOperationSpecs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 077FAF8A22854BE30094A704 /* RDMAudioLoadOperationSpecs.swift */; };
+		077FAF89228542400094A704 /* MarkerSpecs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 077FAF88228542400094A704 /* MarkerSpecs.swift */; };
+		077FAF8B22854BE30094A704 /* DownsampleOperationSepcs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 077FAF8A22854BE30094A704 /* DownsampleOperationSepcs.swift */; };
 		077FAF8D22855B380094A704 /* UIDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 077FAF8C22855B380094A704 /* UIDevice.swift */; };
-		077FAF91228567A40094A704 /* RDMAudioDownsamplerSpecs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 077FAF90228567A40094A704 /* RDMAudioDownsamplerSpecs.swift */; };
+		077FAF91228567A40094A704 /* AdhocDownsamplerSpecs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 077FAF90228567A40094A704 /* AdhocDownsamplerSpecs.swift */; };
+		07E6D2272290FA4E004C9026 /* DownsamplerSpecs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07E6D2262290FA4D004C9026 /* DownsamplerSpecs.swift */; };
 		607FACD61AFB9204008FA782 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACD51AFB9204008FA782 /* AppDelegate.swift */; };
 		607FACD81AFB9204008FA782 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACD71AFB9204008FA782 /* ViewController.swift */; };
 		607FACDB1AFB9204008FA782 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 607FACD91AFB9204008FA782 /* Main.storyboard */; };
 		607FACDD1AFB9204008FA782 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 607FACDC1AFB9204008FA782 /* Images.xcassets */; };
 		607FACE01AFB9204008FA782 /* LaunchScreen.xib in Resources */ = {isa = PBXBuildFile; fileRef = 607FACDE1AFB9204008FA782 /* LaunchScreen.xib */; };
-		607FACEC1AFB9204008FA782 /* RDMWaveformControllerSpecs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACEB1AFB9204008FA782 /* RDMWaveformControllerSpecs.swift */; };
+		607FACEC1AFB9204008FA782 /* AudioDataControllerSpecs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACEB1AFB9204008FA782 /* AudioDataControllerSpecs.swift */; };
 		DF54FBA1F260FC84DE27B956 /* Pods_RDMWaveformView_Tests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4131413ED14B0A3772F8689B /* Pods_RDMWaveformView_Tests.framework */; };
 /* End PBXBuildFile section */
 
@@ -34,12 +37,15 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		07027824229BDCE100830978 /* AudioContextSpecs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioContextSpecs.swift; sourceTree = "<group>"; };
+		07027826229BE52400830978 /* AudioSpecsBase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSpecsBase.swift; sourceTree = "<group>"; };
 		0758FA28228909510040CBDC /* BufferIterationHelperSpecs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BufferIterationHelperSpecs.swift; sourceTree = "<group>"; };
 		0773CEFF2265BC840061941B /* file_example_MP3_700KB.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = file_example_MP3_700KB.mp3; sourceTree = "<group>"; };
-		077FAF88228542400094A704 /* RDMWaveformMarkerSpecs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RDMWaveformMarkerSpecs.swift; sourceTree = "<group>"; };
-		077FAF8A22854BE30094A704 /* RDMAudioLoadOperationSpecs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RDMAudioLoadOperationSpecs.swift; sourceTree = "<group>"; };
+		077FAF88228542400094A704 /* MarkerSpecs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkerSpecs.swift; sourceTree = "<group>"; };
+		077FAF8A22854BE30094A704 /* DownsampleOperationSepcs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownsampleOperationSepcs.swift; sourceTree = "<group>"; };
 		077FAF8C22855B380094A704 /* UIDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIDevice.swift; sourceTree = "<group>"; };
-		077FAF90228567A40094A704 /* RDMAudioDownsamplerSpecs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RDMAudioDownsamplerSpecs.swift; sourceTree = "<group>"; };
+		077FAF90228567A40094A704 /* AdhocDownsamplerSpecs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdhocDownsamplerSpecs.swift; sourceTree = "<group>"; };
+		07E6D2262290FA4D004C9026 /* DownsamplerSpecs.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DownsamplerSpecs.swift; sourceTree = "<group>"; };
 		116ABBBFBC0BDE01B7896ED1 /* RDMWaveformView.podspec */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; name = RDMWaveformView.podspec; path = ../RDMWaveformView.podspec; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
 		2B5A4C5B504D3B202D655E87 /* Pods_RDMWaveformView_Example.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RDMWaveformView_Example.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		4131413ED14B0A3772F8689B /* Pods_RDMWaveformView_Tests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RDMWaveformView_Tests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -53,7 +59,7 @@
 		607FACDF1AFB9204008FA782 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/LaunchScreen.xib; sourceTree = "<group>"; };
 		607FACE51AFB9204008FA782 /* RDMWaveformView_Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RDMWaveformView_Tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		607FACEA1AFB9204008FA782 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		607FACEB1AFB9204008FA782 /* RDMWaveformControllerSpecs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RDMWaveformControllerSpecs.swift; sourceTree = "<group>"; };
+		607FACEB1AFB9204008FA782 /* AudioDataControllerSpecs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDataControllerSpecs.swift; sourceTree = "<group>"; };
 		771AB48D9FAD020FA61C13B4 /* Pods-RDMWaveformView_Example.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RDMWaveformView_Example.release.xcconfig"; path = "Target Support Files/Pods-RDMWaveformView_Example/Pods-RDMWaveformView_Example.release.xcconfig"; sourceTree = "<group>"; };
 		8E5142CAB22D32B2EF57120D /* Pods-RDMWaveformView_Example.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RDMWaveformView_Example.debug.xcconfig"; path = "Target Support Files/Pods-RDMWaveformView_Example/Pods-RDMWaveformView_Example.debug.xcconfig"; sourceTree = "<group>"; };
 		DB3EC26BA5E9BB3420837F98 /* README.md */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = net.daringfireball.markdown; name = README.md; path = ../README.md; sourceTree = "<group>"; };
@@ -139,10 +145,13 @@
 		607FACE81AFB9204008FA782 /* Tests */ = {
 			isa = PBXGroup;
 			children = (
-				607FACEB1AFB9204008FA782 /* RDMWaveformControllerSpecs.swift */,
-				077FAF88228542400094A704 /* RDMWaveformMarkerSpecs.swift */,
-				077FAF8A22854BE30094A704 /* RDMAudioLoadOperationSpecs.swift */,
-				077FAF90228567A40094A704 /* RDMAudioDownsamplerSpecs.swift */,
+				07027826229BE52400830978 /* AudioSpecsBase.swift */,
+				07027824229BDCE100830978 /* AudioContextSpecs.swift */,
+				607FACEB1AFB9204008FA782 /* AudioDataControllerSpecs.swift */,
+				077FAF88228542400094A704 /* MarkerSpecs.swift */,
+				077FAF8A22854BE30094A704 /* DownsampleOperationSepcs.swift */,
+				077FAF90228567A40094A704 /* AdhocDownsamplerSpecs.swift */,
+				07E6D2262290FA4D004C9026 /* DownsamplerSpecs.swift */,
 				607FACE91AFB9204008FA782 /* Supporting Files */,
 				077FAF8C22855B380094A704 /* UIDevice.swift */,
 				0758FA28228909510040CBDC /* BufferIterationHelperSpecs.swift */,
@@ -396,12 +405,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				607FACEC1AFB9204008FA782 /* RDMWaveformControllerSpecs.swift in Sources */,
-				077FAF8B22854BE30094A704 /* RDMAudioLoadOperationSpecs.swift in Sources */,
+				607FACEC1AFB9204008FA782 /* AudioDataControllerSpecs.swift in Sources */,
+				077FAF8B22854BE30094A704 /* DownsampleOperationSepcs.swift in Sources */,
 				0758FA29228909510040CBDC /* BufferIterationHelperSpecs.swift in Sources */,
-				077FAF89228542400094A704 /* RDMWaveformMarkerSpecs.swift in Sources */,
-				077FAF91228567A40094A704 /* RDMAudioDownsamplerSpecs.swift in Sources */,
+				077FAF89228542400094A704 /* MarkerSpecs.swift in Sources */,
+				077FAF91228567A40094A704 /* AdhocDownsamplerSpecs.swift in Sources */,
 				077FAF8D22855B380094A704 /* UIDevice.swift in Sources */,
+				07027827229BE52400830978 /* AudioSpecsBase.swift in Sources */,
+				07E6D2272290FA4E004C9026 /* DownsamplerSpecs.swift in Sources */,
+				07027825229BDCE100830978 /* AudioContextSpecs.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
