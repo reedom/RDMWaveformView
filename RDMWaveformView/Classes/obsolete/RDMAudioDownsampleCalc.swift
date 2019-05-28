@@ -7,13 +7,13 @@
 
 struct RDMAudioDownsampleCalc {
   /// Holds audio information used for building waveforms.
-  let audioContext: RDMAudioContext
+  let audioContext: AudioContext
   /// Downsample rate.
   /// `RDMAudioLoadOperation` uses the specified number of samples to generate
   /// a downsampled value.
   let downsampleRate: Int
 
-  init(_ audioContext: RDMAudioContext, _ downsampleRate: Int) {
+  init(_ audioContext: AudioContext, _ downsampleRate: Int) {
     self.audioContext = audioContext
     self.downsampleRate = downsampleRate
   }

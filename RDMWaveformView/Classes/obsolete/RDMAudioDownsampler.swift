@@ -21,7 +21,7 @@ class RDMAudioDownsampler {
   // MARK: - Properties
 
   /// Current audio context to be used for rendering.
-  public let audioContext: RDMAudioContext
+  public let audioContext: AudioContext
 
   /// Downsample rate.
   public let downsampleRate: Int
@@ -65,7 +65,7 @@ class RDMAudioDownsampler {
 
   // MARK: - Initializer
 
-  public init(audioContext: RDMAudioContext,
+  public init(audioContext: AudioContext,
               downsampleRate: Int,
               decibelMax: CGFloat,
               decibelMin: CGFloat,
@@ -252,9 +252,9 @@ class RDMAudioDownsampler {
   private func invokeOperation(_ timeRange: TimeRange,
                                onComplete: @escaping () -> Void,
                                callback: @escaping Callback) {
-    var completed = false
-    var taskCount: Int32 = 0
-    var called: Int32 = 0
+//    var completed = false
+//    var taskCount: Int32 = 0
+//    var called: Int32 = 0
     var upperBound: Int = 0
 
     let operation = RDMAudioDownsampleOperation(audioContext: audioContext,
@@ -262,53 +262,50 @@ class RDMAudioDownsampler {
                                           downsampleRate: downsampleRate,
                                           decibelMax: decibelMax,
                                           decibelMin: decibelMin)
-    { [weak self] (operation, downsampleRange, downsamples) -> Void in
+    { [weak self] (operation, downsampleRange, downsamples, lastCall) -> Void in
       guard let self = self else { return }
-      OSAtomicIncrement32(&taskCount)
+//      OSAtomicIncrement32(&taskCount)
       DispatchQueue.main.async {
         if self.decibelMax < operation.decibelMax {
           self.decibelMax = operation.decibelMax
         }
-        if let downsamples = downsamples {
-          self.handledRanges.add(downsampleRange)
-          self.store(downsampleRange, downsamples)
-        }
+        self.handledRanges.add(downsampleRange)
+        self.store(downsampleRange, downsamples)
         if let i = self.operations.firstIndex(of: operation) {
           self.operations.remove(at: i)
         }
-        if let downsamples = downsamples {
-          callback(downsampleRange, downsamples[0..<downsamples.count])
-        }
+        callback(downsampleRange, downsamples[0..<downsamples.count])
         upperBound = max(upperBound, downsampleRange.upperBound)
-        if OSAtomicDecrement32(&taskCount) == 0 && completed {
-          if OSAtomicIncrement32(&called) == 1 {
-            onComplete()
-          }
-        }
+        // FIXME comment the purpose of the following logic.
+//        if OSAtomicDecrement32(&taskCount) == 0 && completed {
+//          if OSAtomicIncrement32(&called) == 1 {
+//            onComplete()
+//          }
+//        }
       }
     }
 
     operation.completionBlock = { [weak self] in
       guard let self = self else { return }
 
-      if Int(ceil(self.audioContext.asset.duration.seconds)) <= timeRange.upperBound {
-        // when it has readed the tail of the track
-        if upperBound < self.downsamples.count {
-          // self.downsamples has extra elements. Let's drop them.
-          // self.handledRanges.subtract(upperBound ..< self.downsamples.count)
-          DispatchQueue.main.async {
+      DispatchQueue.main.async {
+        if Int(ceil(self.audioContext.asset.duration.seconds)) <= timeRange.upperBound {
+          // when it has readed the tail of the track
+          if upperBound < self.downsamples.count {
+            // self.downsamples has extra elements. Let's drop them.
+            // self.handledRanges.subtract(upperBound ..< self.downsamples.count)
             self.downsamples.removeLast(self.downsamples.count - upperBound)
           }
         }
-      }
 
-      completed = true
-      if taskCount == 0 {
-        if OSAtomicIncrement32(&called) == 1 {
-          DispatchQueue.main.async {
-            onComplete()
-          }
-        }
+//        completed = true
+//        if taskCount == 0 {
+//          if OSAtomicIncrement32(&called) == 1 {
+//            DispatchQueue.main.async {
+              onComplete()
+//            }
+//          }
+//        }
       }
     }
 

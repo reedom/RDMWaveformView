@@ -16,7 +16,7 @@ final public class RDMAudioDownsampleOperation: Operation {
   }
 
   /// Holds audio information used for building waveforms.
-  public let audioContext: RDMAudioContext
+  public let audioContext: AudioContext
   /// Range of time in seconds.
   /// `RDMAudioLoadOperation` loads and downsamples only the specified range.
   public let timeRange: TimeRange
@@ -42,7 +42,8 @@ final public class RDMAudioDownsampleOperation: Operation {
   public typealias Callback = (
     _ operation: RDMAudioDownsampleOperation,
     _ downsampleRange: DownsampleRange,
-    _ downsamples: [CGFloat]?) -> Void
+    _ downsamples: [CGFloat],
+    _ lastCall: Bool) -> Void
 
   // MARK: - Private
 
@@ -51,7 +52,7 @@ final public class RDMAudioDownsampleOperation: Operation {
 
   /// MARK: - Initialization
 
-  init(audioContext: RDMAudioContext,
+  init(audioContext: AudioContext,
        timeRange: TimeRange,
        downsampleRate: Int,
        decibelMax: CGFloat,
@@ -117,7 +118,7 @@ final public class RDMAudioDownsampleOperation: Operation {
 
     let calc = RDMAudioDownsampleCalc(audioContext, downsampleRate)
     var downsampleIndex = calc.downsampleRangeFrom(timeRange: timeRange).lowerBound
-    audioContext.iterateSampleData(duration: duration, unitLength: readUnit) { [weak self] (sampleBuffer) in
+    audioContext.iterateSampleData(duration: duration, unitLength: readUnit) { [weak self] (sampleBuffer, lastCall) in
       guard let self = self else { return false }
       let downsampleCount = (readUnit <= sampleBuffer.count) ? sampleBuffer.count / readUnit : 1
       let downsampleRate  = (readUnit <= sampleBuffer.count) ? downsampleUnit : sampleBuffer.count / MemoryLayout<Int16>.size
@@ -126,7 +127,7 @@ final public class RDMAudioDownsampleOperation: Operation {
                                         downsampleRate: downsampleRate,
                                         filter: filter)
       let downsampleRange = downsampleIndex ..< downsampleIndex + downsamples.count
-       self.callback(self, downsampleRange, downsamples)
+      self.callback(self, downsampleRange, downsamples, lastCall)
       downsampleIndex += downsamples.count
       return !self.isCancelled
     }
