@@ -117,6 +117,10 @@ extension WaveformCalc {
       }
     }
   }
+
+  public func entireTimeRange() -> TimeRange {
+    return 0 ..< Int(ceil(duration))
+  }
 }
 
 extension WaveformCalc {

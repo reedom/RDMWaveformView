@@ -24,7 +24,7 @@ class DownsamplerSpecs: AudioSpecsBase {
       it("downsamples") {
         waitUntil(timeout: 1000) { done in
           self.createController { controller in
-            self.downsampler = Downsampler(controller)
+            self.downsampler = Downsampler(controller.audioContext!)
 
             let handler1 = DownsampledHandler1() { (handler, downsampleRange, downsamples) in
               expect(handler.downsamples.count) == downsampleRange.lowerBound

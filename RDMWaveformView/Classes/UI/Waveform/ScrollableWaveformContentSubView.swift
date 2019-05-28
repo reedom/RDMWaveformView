@@ -22,7 +22,15 @@ open class ScrollableWaveformContentSubView: UIView {
   /// Calcurator around waveform and its view.
   var calculator: WaveformCalc?
   /// Parameters for the renderer.
-  var rendererParams: WaveformRendererParams?
+  var rendererParams: WaveformRendererParams? {
+    didSet {
+      if let params = rendererParams {
+        renderer = WaveformRenderer(params: params)
+      } else {
+        renderer = nil
+      }
+    }
+  }
 
   /// Range of sampling data that `WaveformContentView` instance should render.
   public private(set) var timeRange: TimeRange = 0..<0
@@ -70,17 +78,19 @@ extension ScrollableWaveformContentSubView {
   }
 
   /// Start rendering procedure.
-  public func startRenderingProcedure(timeRange: TimeRange, contentOffset: CGFloat = 0) {
+  func startRendering(timeRange: TimeRange, contentOffset: CGFloat = 0) {
+    self.timeRange = timeRange
+    self.contentOffset = contentOffset
+    startRendering()
+  }
+
+  private func startRendering() {
     guard
       0 < frame.width,
       let downsampler = downsampler,
-      let calculator = calculator,
-      let params = rendererParams
+      let adhocDownsampler = adhocDownsampler,
+      let calculator = calculator
       else { return }
-
-    self.timeRange = timeRange
-    self.contentOffset = contentOffset
-    renderer = WaveformRenderer(params: params)
 
     renderHints.removeAll()
 
@@ -95,13 +105,12 @@ extension ScrollableWaveformContentSubView {
       return
     }
 
-    guard let adhocDownsampler = adhocDownsampler else { return }
     cancelRendering()
     let renderID = self.renderID
     rendering = true
     adhocDownsampler.downsample(timeRange: timeRange, onComplete: onComplete) { [weak self] (downsampleRange, downsamples) in
       guard let self = self, renderID == self.renderID else { return }
-      self.prepareDrawing(timeRange, downsamples)
+      self.prepareDrawing(downsampleRange, downsamples)
     }
   }
 
@@ -132,7 +141,7 @@ extension ScrollableWaveformContentSubView {
       // This happens when
       // a) initial rendering
       // b) iOS had flushed the rendering buffer while the app was in background
-      startRenderingProcedure(timeRange: timeRange, contentOffset: contentOffset)
+      startRendering()
     }
 
     renderHints.forEach { (renderHint) in

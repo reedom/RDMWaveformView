@@ -57,8 +57,8 @@ open class WaveformContentView: UIView {
   }
 
   deinit {
-    if let downsampler = downsampler, let calculator = calculator {
-      downsampler.removeHandler(downsampleRate: calculator.downsampleRate, handler: self)
+    if let downsampler = downsampler {
+      downsampler.removeHandler(self)
     }
   }
 }
@@ -69,20 +69,21 @@ extension WaveformContentView: DownsampledHandler {
       if oldCalculator == calculator && oldDownsampler == downsampler {
         return
       }
-      downsampler.removeHandler(downsampleRate: calculator.downsampleRate, handler: self)
+      downsampler.removeHandler(self)
     }
 
     self.downsampler = downsampler
     self.calculator = calculator
     downsampler.addHandler(downsampleRate: calculator.downsampleRate, handler: self)
+    downsampler.startLoading()
   }
 
   func downsamplerDidDownsample(downsampleRange: DownsampleRange, downsamples: ArraySlice<CGFloat>) {
     guard let calculator = calculator else { return }
-    let rect = calculator.rectFrom(downsampleRange: downsampleRange, height: self.frame.height)
-    let hint = DrawHint(downsamples: downsamples, rect: rect)
-
     DispatchQueue.main.async {
+      let rect = calculator.rectFrom(downsampleRange: downsampleRange, height: self.frame.height)
+      let hint = DrawHint(downsamples: downsamples, rect: rect)
+
       self.renderHints.append(hint)
       // Put some offset on invalidate rect. Without this, the device will
       // draw a half width line at the edge of the rect.

@@ -15,12 +15,12 @@ open class ScrollableWaveformContentView: UIView {
 
   // MARK: - Properties for downsampling
 
-  /// Downsampler.
-  var downsampler: Downsampler?
   /// Downsampler(adhoc usage).
-  var adhocDownsampler: AdhocDownsampler?
+  private var adhocDownsampler: AdhocDownsampler?
+  /// Downsampler.
+  public private(set) var downsampler: Downsampler?
   /// Calcurator around waveform and its view.
-  var calculator: WaveformCalc?
+  public private(set) var calculator: WaveformCalc?
   /// Parameters for the renderer.
   var rendererParams: WaveformRendererParams?
 
@@ -49,6 +49,29 @@ open class ScrollableWaveformContentView: UIView {
   }
 }
 
+extension ScrollableWaveformContentView: DownsampledHandler {
+  public func setup(_ calculator: WaveformCalc, _ downsampler: Downsampler) {
+    if let oldCalculator = self.calculator, let oldDownsampler = self.downsampler {
+      if oldCalculator == calculator && oldDownsampler == downsampler {
+        return
+      }
+      downsampler.removeHandler(self)
+    }
+
+    self.adhocDownsampler = AdhocDownsampler(audioContext: calculator.audioContext,
+                                             downsampleRate: calculator.downsampleRate,
+                                             decibelMax: downsampler.decibelMax,
+                                             decibelMin: downsampler.decibelMin)
+    self.downsampler = downsampler
+    self.calculator = calculator
+    downsampler.addHandler(downsampleRate: calculator.downsampleRate, handler: self)
+    downsampler.startLoading()
+  }
+
+  func downsamplerDidDownsample(downsampleRange: DownsampleRange, downsamples: ArraySlice<CGFloat>) {
+  }
+}
+
 extension ScrollableWaveformContentView {
   private func updateContent() {
     guard
@@ -69,7 +92,7 @@ extension ScrollableWaveformContentView {
       let baseRect = calculator.rectFrom(timeRange: timeRange, height: frame.height)
       contentView.frame = baseRect.insetBy(dx: -0.5, dy: 0)
       contentView.cancelRendering()
-      contentView.startRenderingProcedure(timeRange: timeRange, contentOffset: baseRect.minX)
+      contentView.startRendering(timeRange: timeRange, contentOffset: baseRect.minX)
       activeContents.append(contentView)
     }
 

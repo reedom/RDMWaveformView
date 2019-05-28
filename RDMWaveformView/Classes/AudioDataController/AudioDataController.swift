@@ -13,11 +13,12 @@ open class AudioDataController: NSObject {
   public var audioContext: AudioContext? {
     didSet {
       // Skip if there is no update.
-      if audioContext != nil {
+      if let audioContext = audioContext {
+        downsampler = Downsampler(audioContext)
         observers.forEach({ $0.value?.audioDataControllerDidSetAudioContext?(self)})
         delegate?.audioDataControllerDidSetAudioContext?(self)
-        downsampler.startLoading()
       } else {
+        downsampler = nil
         observers.forEach({ $0.value?.audioDataControllerDidReset?(self)})
         delegate?.audioDataControllerDidReset?(self)
       }
@@ -42,13 +43,7 @@ open class AudioDataController: NSObject {
     return _time
   }
 
-  lazy var _downsampler: Downsampler = {
-    return Downsampler(self)
-  }()
-
-  public var downsampler: Downsampler {
-    return _downsampler
-  }
+  public private(set) var downsampler: Downsampler?
 }
 
 extension AudioDataController {

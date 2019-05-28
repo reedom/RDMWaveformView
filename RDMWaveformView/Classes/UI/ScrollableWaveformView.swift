@@ -391,12 +391,11 @@ extension ScrollableWaveformView {
   }
 
   private func setupContentView() {
-    setupCalculator()
+    guard let audioContext = controller?.audioContext else { return }
 
-    contentView.calculator = calculator
-    contentView.downsampler = downsampler
-    guageView.calculator = calculator
+    calculator = WaveformCalc(audioContext: audioContext, resolution: resolution)
     if let calculator = calculator, let downsampler = downsampler {
+      contentView.setup(calculator, downsampler)
       contentView.rendererParams = WaveformRendererParams(decibelMin: downsampler.decibelMin,
                                                           decibelMax: downsampler.decibelMax,
                                                           resolution: calculator.resolution,
@@ -405,18 +404,6 @@ extension ScrollableWaveformView {
                                                           lineColor: waveformLineColor)
       guageView.rendererParams = WaveformTimeGuageRendererParams()
     }
-  }
-
-  private func setupCalculator() {
-    if let calculator = calculator {
-      if calculator.totalWidth == frame.width {
-        // no need to recreate
-        return
-      }
-    }
-
-    guard let audioContext = controller?.audioContext else { return }
-    calculator = WaveformCalc(audioContext: audioContext, resolution: resolution, totalWidth: frame.width)
   }
 }
 
