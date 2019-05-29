@@ -29,8 +29,8 @@ open class WaveformView: UIView {
 
   /// `MarkersController` manages markers.
   public var markersController: MarkersController? {
-    get { return markersContainer.markersController }
-    set { markersContainer.markersController = newValue }
+    get { return markersView.markersController }
+    set { markersView.markersController = newValue }
   }
 
   /// Downsampler.
@@ -95,7 +95,7 @@ open class WaveformView: UIView {
     return view
   }()
 
-  public lazy var markersContainer: MarkersView = {
+  public lazy var markersView: MarkersView = {
     let view = MarkersView()
     addSubview(view)
     view.backgroundColor = UIColor.transparent
@@ -109,10 +109,10 @@ open class WaveformView: UIView {
   // MARK: - Subview on/off
 
   open var showMarker: Bool {
-    get { return !markersContainer.isHidden }
+    get { return !markersView.isHidden }
     set {
       guard showMarker != newValue else { return }
-      markersContainer.isHidden = !newValue
+      markersView.isHidden = !newValue
       setNeedsLayout()
     }
   }
@@ -155,9 +155,9 @@ extension WaveformView {
 
     if showMarker {
       contentView.frame = CGRect(x: 0,
-                                 y: markersContainer.markerSize.height,
+                                 y: markersView.markerSize.height,
                                  width: bounds.width,
-                                 height: bounds.height - markersContainer.markerSize.height)
+                                 height: bounds.height - markersView.markerSize.height)
     } else {
       contentView.frame = bounds
     }
@@ -169,20 +169,25 @@ extension WaveformView {
       cursorView.setNeedsDisplay()
     }
     if showMarker {
-      markersContainer.markerLineHeight = contentView.frame.height
-      markersContainer.frame = CGRect(x: contentView.frame.minX,
-                                      y: 0,
-                                      width: contentView.frame.width,
-                                      height: markersContainer.markerSize.height)
+      markersView.markerLineHeight = contentView.frame.height
+      markersView.frame = CGRect(x: contentView.frame.minX,
+                                 y: 0,
+                                 width: contentView.frame.width,
+                                 height: markersView.markerSize.height)
+      markersView.setNeedsLayout()
     }
     contentView.setNeedsLayout()
   }
 
   private func refreshWaveform() {
     guard Thread.isMainThread else {
-      DispatchQueue.main.async { self.setNeedsLayout() }
+      DispatchQueue.main.async {
+        self.markersView.duration = self.controller?.audioContext?.asset.duration.seconds ?? 0
+        self.setNeedsLayout()
+      }
       return
     }
+    markersView.duration = controller?.audioContext?.asset.duration.seconds ?? 0
     setNeedsLayout()
   }
 

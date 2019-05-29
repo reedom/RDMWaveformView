@@ -45,8 +45,8 @@ open class ScrollableWaveformView: UIView {
 
   /// `MarkersController` manages markers.
   public var markersController: MarkersController? {
-    get { return markersContainer.markersController }
-    set { markersContainer.markersController = newValue }
+    get { return markersView.markersController }
+    set { markersView.markersController = newValue }
   }
 
   /// Downsampler.
@@ -97,18 +97,18 @@ open class ScrollableWaveformView: UIView {
   // MARK: - Subview on/off
 
   open var showMarker: Bool {
-    get { return !markersContainer.isHidden }
+    get { return !markersView.isHidden }
     set {
-      markersContainer.isHidden = !newValue
+      markersView.isHidden = !newValue
       setNeedsLayout()
     }
   }
 
   open var showAddMarkerButton: Bool {
-    get { return markersContainer.showAddMarkerButton }
+    get { return markersView.showAddMarkerButton }
     set {
-      markersContainer.showAddMarkerButton = newValue
-      markersContainer.setNeedsLayout()
+      markersView.showAddMarkerButton = newValue
+      markersView.setNeedsLayout()
     }
   }
 
@@ -191,7 +191,7 @@ open class ScrollableWaveformView: UIView {
     return view
   }()
 
-  public lazy var markersContainer: MarkersView = {
+  public lazy var markersView: MarkersView = {
     let view = MarkersView()
     addSubview(view)
     view.backgroundColor = UIColor.transparent
@@ -268,9 +268,9 @@ extension ScrollableWaveformView {
 
     if showMarker {
       scrollView.frame = CGRect(x: 0,
-                                y: markersContainer.markerTouchSize.height,
+                                y: markersView.markerTouchSize.height,
                                 width: bounds.width,
-                                height: bounds.height - markersContainer.markerTouchSize.height)
+                                height: bounds.height - markersView.markerTouchSize.height)
     } else {
       scrollView.frame = bounds
     }
@@ -328,18 +328,18 @@ extension ScrollableWaveformView {
     // Layout makerContainer
 
     if showMarker {
-      markersContainer.markerLineHeight = scrollView.frame.minY + contentView.frame.height
-      markersContainer.frame = CGRect(x: contentView.frame.minX,
+      markersView.markerLineHeight = scrollView.frame.minY + contentView.frame.height
+      markersView.frame = CGRect(x: contentView.frame.minX,
                                       y: 0,
                                       width: contentView.frame.width,
-                                      height: markersContainer.markerTouchSize.height)
+                                      height: markersView.markerTouchSize.height)
     }
 
     // Reorder subviews
 
     scrollView.sendSubviewToBack(contentBackgroundView)
     bringSubviewToFront(centerGuide)
-    bringSubviewToFront(markersContainer)
+    bringSubviewToFront(markersView)
     bringSubviewToFront(guageView)
 
     // Advice subviews to render
@@ -348,7 +348,7 @@ extension ScrollableWaveformView {
     guageView.contentOffset = scrollView.contentOffset.x
     contentView.contentOffset = scrollView.contentOffset.x
     if showMarker {
-      markersContainer.setNeedsLayout()
+      markersView.setNeedsLayout()
     }
   }
 }
@@ -382,11 +382,14 @@ extension ScrollableWaveformView {
 
 extension ScrollableWaveformView {
   private func refreshWaveform() {
-    markersContainer.duration = controller?.audioContext?.asset.duration.seconds ?? 0
     guard Thread.isMainThread else {
-      DispatchQueue.main.async { self.setNeedsLayout() }
+      DispatchQueue.main.async {
+        self.markersView.duration = self.controller?.audioContext?.asset.duration.seconds ?? 0
+        self.setNeedsLayout()
+      }
       return
     }
+    markersView.duration = controller?.audioContext?.asset.duration.seconds ?? 0
     setNeedsLayout()
   }
 
@@ -402,6 +405,7 @@ extension ScrollableWaveformView {
                                                           totalWidth: calculator.totalWidth,
                                                           marginLeft: 0.5,
                                                           lineColor: waveformLineColor)
+      guageView.calculator = calculator
       guageView.rendererParams = WaveformTimeGuageRendererParams()
     }
   }
@@ -425,11 +429,11 @@ extension ScrollableWaveformView: UIScrollViewDelegate {
   public func scrollViewDidScroll(_ scrollView: UIScrollView) {
     // markerContainer
     if showMarker {
-      let dx = (contentView.frame.minX - scrollView.contentOffset.x) - markersContainer.frame.minX
-      markersContainer.frame = markersContainer.frame.offsetBy(dx: dx, dy: 0)
-      markersContainer.currentTime = controller?.time.currentTime ?? 0
-      markersContainer.contentOffset = scrollView.contentOffset.x
-      markersContainer.updateDraggingMarkerPosition(scrollDelta: scrollView.contentOffset.x - lastScrollContentOffset)
+      let dx = (contentView.frame.minX - scrollView.contentOffset.x) - markersView.frame.minX
+      markersView.frame = markersView.frame.offsetBy(dx: dx, dy: 0)
+      markersView.currentTime = controller?.time.currentTime ?? 0
+      markersView.contentOffset = scrollView.contentOffset.x
+      markersView.updateDraggingMarkerPosition(scrollDelta: scrollView.contentOffset.x - lastScrollContentOffset)
     }
 
     // contentView and guideView

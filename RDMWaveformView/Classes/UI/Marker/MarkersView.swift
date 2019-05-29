@@ -59,13 +59,7 @@ open class MarkersView: UIView {
   }
   /// Total duration of the current track.
   open var duration: TimeInterval = 0 {
-    didSet {
-      guard Thread.isMainThread else {
-        DispatchQueue.main.async { self.setNeedsLayout() }
-        return
-      }
-      setNeedsLayout()
-    }
+    didSet { setNeedsLayout() }
   }
   /// The current time that `MarkersController` focuses at.
   open var currentTime: TimeInterval = 0
@@ -157,13 +151,13 @@ extension MarkersView {
       .filter { markerViews[$0.uuid] == nil }
       .forEach { (marker) in
         let markerView = MarkerView(uuid: marker.uuid,
-                                               touchRect: touchRect,
-                                               markerColor: markerColor,
-                                               markerTouchColor: markerTouchColor,
-                                               markerRect: markerRect,
-                                               markerLineColor: markerLineColor,
-                                               markerLineWidth: markerLineWidth,
-                                               frame: markerFrame(from: marker))
+                                    touchRect: touchRect,
+                                    markerColor: markerColor,
+                                    markerTouchColor: markerTouchColor,
+                                    markerRect: markerRect,
+                                    markerLineColor: markerLineColor,
+                                    markerLineWidth: markerLineWidth,
+                                    frame: markerFrame(from: marker))
         markerView.delegate = self
         addSubview(markerView)
         markerViews[markerView.uuid] = markerView
@@ -199,13 +193,13 @@ extension MarkersView {
         return
       }
       let markerView = MarkerView(uuid: marker.uuid,
-                                             touchRect: touchRect,
-                                             markerColor: markerColor,
-                                             markerTouchColor: markerTouchColor,
-                                             markerRect: markerRect,
-                                             markerLineColor: markerLineColor,
-                                             markerLineWidth: markerLineWidth,
-                                             frame: markerFrame(from: marker))
+                                  touchRect: touchRect,
+                                  markerColor: markerColor,
+                                  markerTouchColor: markerTouchColor,
+                                  markerRect: markerRect,
+                                  markerLineColor: markerLineColor,
+                                  markerLineWidth: markerLineWidth,
+                                  frame: markerFrame(from: marker))
       markerView.delegate = self
       addSubview(markerView)
       markerViews[markerView.uuid] = markerView
@@ -239,19 +233,19 @@ extension MarkersView {
 // MARK: - `MarkersControllerDelegate`
 
 extension MarkersView: MarkersControllerDelegate {
-  public func waveformMarkersController(_ controller: MarkersController, didAdd marker: Marker) {
+  public func markersController(_ controller: MarkersController, didAdd marker: Marker) {
     addMarkerViews(markers: [marker])
   }
 
-  public func waveformMarkersController(_ controller: MarkersController, didUpdateTime marker: Marker) {
+  public func markersController(_ controller: MarkersController, didUpdateTime marker: Marker) {
     updateMarkerView(marker: marker)
   }
 
-  public func waveformMarkersController(_ controller: MarkersController, didRemove marker: Marker) {
+  public func markersController(_ controller: MarkersController, didRemove marker: Marker) {
     removeMarkerView(marker: marker)
   }
 
-  public func waveformMarkersControllerDidRemoveAllMarkers(_ controller: MarkersController) {
+  public func markersControllerDidRemoveAllMarkers(_ controller: MarkersController) {
     while !markerViews.isEmpty {
       let (_, markerView) = markerViews.popFirst()!
       markerView.delegate = nil
@@ -347,3 +341,4 @@ extension MarkersView: MarkerViewDelegate {
     marker.time = TimeInterval(progress) * duration
   }
 }
+
