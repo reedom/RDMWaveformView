@@ -151,7 +151,7 @@ class AdhocDownsampler {
                                         decibelMin: decibelMin)
     { [weak self] (operation, downsampleRange, downsamples, lastCall) -> Void in
       guard let self = self else { return }
-      //      OSAtomicIncrement32(&taskCount)
+
       DispatchQueue.main.async {
         if self.decibelMax < operation.decibelMax {
           self.decibelMax = operation.decibelMax
@@ -161,38 +161,23 @@ class AdhocDownsampler {
         if let i = self.operations.firstIndex(of: operation) {
           self.operations.remove(at: i)
         }
-        callback(downsampleRange, downsamples[0..<downsamples.count])
-        upperBound = max(upperBound, downsampleRange.upperBound)
-        // FIXME comment the purpose of the following logic.
-        //        if OSAtomicDecrement32(&taskCount) == 0 && completed {
-        //          if OSAtomicIncrement32(&called) == 1 {
-        //            onComplete()
-        //          }
-        //        }
-      }
-    }
 
-    operation.completionBlock = { [weak self] in
-      guard let self = self else { return }
-
-      DispatchQueue.main.async {
-        if Int(ceil(self.audioContext.asset.duration.seconds)) <= timeRange.upperBound {
-          // when it has readed the tail of the track
-          if upperBound < self.downsamples.count {
-            // self.downsamples has extra elements. Let's drop them.
-            // self.handledRanges.subtract(upperBound ..< self.downsamples.count)
-            self.downsamples.removeLast(self.downsamples.count - upperBound)
-          }
+        if !downsampleRange.isEmpty {
+          callback(downsampleRange, downsamples[0..<downsamples.count])
+          upperBound = max(upperBound, downsampleRange.upperBound)
         }
 
-        //        completed = true
-        //        if taskCount == 0 {
-        //          if OSAtomicIncrement32(&called) == 1 {
-        //            DispatchQueue.main.async {
-        onComplete()
-        //            }
-        //          }
-        //        }
+        if lastCall {
+          if Int(ceil(self.audioContext.asset.duration.seconds)) <= timeRange.upperBound {
+            // when it has readed the tail of the track
+            if upperBound < self.downsamples.count {
+              // self.downsamples has extra elements. Let's drop them.
+              // self.handledRanges.subtract(upperBound ..< self.downsamples.count)
+              self.downsamples.removeLast(self.downsamples.count - upperBound)
+            }
+          }
+          onComplete()
+        }
       }
     }
 
