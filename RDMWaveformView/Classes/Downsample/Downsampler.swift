@@ -26,6 +26,8 @@ public class Downsampler: NSObject {
 
   private var handlers = [HandlerInfo]()
 
+  public var cacher: DownsampleCacher?
+
   public init(_ audioContext: AudioContext) {
     self.audioContext = audioContext
     super.init()
@@ -95,25 +97,30 @@ extension Downsampler {
 
     self.status = .loading
 
-    loadFromCache() { [weak self] result in
-      switch result {
-      case .success(_):
-        self?.status = .loaded
-        completionHandler(result)
-        return
-      case .failure(_):
-        break
-      }
-
-      self?.loadFromAudio() { result in
+    DispatchQueue.global().async { [weak self] in
+      self?.loadFromCache() { result in
         switch result {
         case .success(_):
           self?.status = .loaded
-        case .failure(let error):
-          self?.status = .failed
-          print(error)
+          completionHandler(result)
+          return
+        case .failure(_):
+          break
         }
-        completionHandler(result)
+
+        self?.loadFromAudio() { result in
+          switch result {
+          case .success(_):
+            self?.status = .loaded
+            self?.saveToCache() { _ in
+              completionHandler(result)
+            }
+          case .failure(let error):
+            self?.status = .failed
+            print(error)
+            completionHandler(result)
+          }
+        }
       }
     }
   }
@@ -122,7 +129,57 @@ extension Downsampler {
   }
 
   private func loadFromCache(completionHandler: @escaping CompletionHandler) {
-    completionHandler(.failure(NotFoundError()))
+    guard
+      !handlers.isEmpty,
+      !handlers.allSatisfy({ $0.finished })
+      else {
+        completionHandler(.success(Void()))
+        return
+    }
+
+    guard let cacher = cacher else {
+      completionHandler(.failure(NotFoundError()))
+      return
+    }
+
+    cacher.load(url: audioContext.audioURL) { [weak self] (downsamples) in
+      guard let downsamples = downsamples else {
+        completionHandler(.failure(NotFoundError()))
+        return
+      }
+      guard
+        let self = self,
+        let primaryHandler = self.handlers.first
+        else {
+          completionHandler(.success(Void()))
+          return
+      }
+      primaryHandler.append(0 ..< downsamples.count, downsamples, lastCall: true)
+      for i in 1 ..< self.handlers.count {
+        self.handlers[i].downsample(reference: primaryHandler, lastCall: true)
+      }
+      completionHandler(.success(Void()))
+    }
+  }
+
+  private func saveToCache(completionHandler: @escaping CompletionHandler) {
+    guard
+      let cacher = cacher,
+      let primaryHandler = handlers.first,
+      !primaryHandler.downsamples.isEmpty,
+      primaryHandler.finished
+      else {
+        completionHandler(.success(Void()))
+        return
+    }
+
+    cacher.save(url: audioContext.audioURL, downsamples: primaryHandler.downsamples) { error in
+      if let error = error {
+        completionHandler(.failure(error))
+      } else {
+        completionHandler(.success(Void()))
+      }
+    }
   }
 
   private func loadFromAudio(completionHandler: @escaping CompletionHandler) {

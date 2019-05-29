@@ -31,6 +31,7 @@ class ViewController: UIViewController {
 
     let controller = AudioDataController()
     controller.delegate = self
+    controller.downsampleCacher = DownsampleFileCacher()
     let markers = MarkersController()
     markers.add(at: 6, data: nil)
 

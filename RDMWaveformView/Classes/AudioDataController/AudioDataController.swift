@@ -15,6 +15,7 @@ open class AudioDataController: NSObject {
       // Skip if there is no update.
       if let audioContext = audioContext {
         downsampler = Downsampler(audioContext)
+        downsampler?.cacher = downsampleCacher
         observers.forEach({ $0.value?.audioDataControllerDidSetAudioContext?(self)})
         delegate?.audioDataControllerDidSetAudioContext?(self)
       } else {
@@ -44,6 +45,8 @@ open class AudioDataController: NSObject {
   }
 
   public private(set) var downsampler: Downsampler?
+
+  public var downsampleCacher: DownsampleCacher?
 }
 
 extension AudioDataController {
