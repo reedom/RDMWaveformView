@@ -111,10 +111,10 @@ extension AudioContext {
     var cancelled = false
     let sampleBuffer = BufferIterationHelper(bufferSize: unitLength) { cancelled = cancelled || !sampleDataHandler($0, $1) }
 
-//    var remainBytes = Int(ceil(duration.duration.seconds * Double(sampleRate))) * channelCount * MemoryLayout<Int16>.size
+    var remainBytes = Int(ceil(duration.duration.seconds * Double(sampleRate))) * channelCount * MemoryLayout<Int16>.size
     while reader.status == .reading {
       guard !cancelled else { return }
-  //    guard 0 < remainBytes else { break }
+      guard 0 < remainBytes else { break }
 
       guard
         let readSampleBuffer = readerOutput.copyNextSampleBuffer(),
@@ -129,9 +129,9 @@ extension AudioContext {
                                   lengthAtOffsetOut: &readBufferLength,
                                   totalLengthOut: nil,
                                   dataPointerOut: &readBufferPointer)
-//      let appendLength = min(readBufferLength, remainBytes)
-//      remainBytes -= appendLength
-      sampleBuffer.append(UnsafeBufferPointer(start: readBufferPointer, count: readBufferLength))
+      let appendLength = min(readBufferLength, remainBytes)
+      remainBytes -= appendLength
+      sampleBuffer.append(UnsafeBufferPointer(start: readBufferPointer, count: appendLength))
       CMSampleBufferInvalidate(readSampleBuffer)
     }
 

@@ -391,11 +391,12 @@ fileprivate class HandlerInfo {
 
   private func calcAvg(_ reference: HandlerInfo) -> CGFloat {
     var total: CGFloat = 0
-    for i in referenceLowerBound ..< referenceUpperBound {
+    var n = 0
+    for i in referenceLowerBound ..< min(referenceUpperBound, reference.downsamples.count) {
       total += reference.downsamples[i]
+      n += 1
     }
 
-    let n = referenceUpperBound - referenceLowerBound
     return total / CGFloat(n)
   }
 }
