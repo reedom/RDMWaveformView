@@ -41,4 +41,5 @@ TODO: Add long description of the pod here.
   # s.frameworks = 'UIKit', 'MapKit'
   # s.dependency 'AFNetworking', '~> 2.3'
   s.dependency 'SparseRanges'
+  s.dependency 'NSString-Hash', '~> 0.0.1'
 end

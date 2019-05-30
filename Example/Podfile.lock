@@ -10,13 +10,15 @@ PODS:
   - iOSSnapshotTestCase/SwiftSupport (6.0.3):
     - iOSSnapshotTestCase/Core
   - Nimble (8.0.1)
-  - Nimble-Snapshots (7.0.0):
-    - Nimble-Snapshots/Core (= 7.0.0)
-  - Nimble-Snapshots/Core (7.0.0):
+  - Nimble-Snapshots (7.1.0):
+    - Nimble-Snapshots/Core (= 7.1.0)
+  - Nimble-Snapshots/Core (7.1.0):
     - iOSSnapshotTestCase (~> 6.0)
     - Nimble (~> 8.0)
+  - NSString-Hash (0.0.1)
   - Quick (2.0.0)
   - RDMWaveformView (0.1.0):
+    - NSString-Hash (~> 0.0.1)
     - SparseRanges
   - SparseRanges (0.1.0)
 
@@ -34,6 +36,7 @@ SPEC REPOS:
     - iOSSnapshotTestCase
     - Nimble
     - Nimble-Snapshots
+    - NSString-Hash
     - Quick
 
 EXTERNAL SOURCES:
@@ -51,9 +54,10 @@ SPEC CHECKSUMS:
   FBSnapshotTestCase: 094f9f314decbabe373b87cc339bea235a63e07a
   iOSSnapshotTestCase: 944a73f6d9676302811a86c0cf35f0e6ef5ab2a0
   Nimble: 45f786ae66faa9a709624227fae502db55a8bdd0
-  Nimble-Snapshots: 2d6d712ceb2d1850d88f850fbd7c732618106022
+  Nimble-Snapshots: 2ec985281eef0eb9fc69a469deee851363a50d0e
+  NSString-Hash: 59c428d8a5f0f85ec443ef9865107832b8a845e7
   Quick: ce1276c7c27ba2da3cb2fd0cde053c3648b3b22d
-  RDMWaveformView: ea747e6fb6272164bb9ff9c5e735798ad0b87bf5
+  RDMWaveformView: cbdd435a97516d6ecb8a7a5208ae9e9657dbb8c3
   SparseRanges: 260768892c0ae4bdb55d67b1a9d2e59019b4cc1f
 
 PODFILE CHECKSUM: 91453427261bf70c409161ea81ff2efc412d6867

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import NSString_Hash
 
 public protocol DownsampleCacher {
   func load(url: URL, callback: @escaping (_ downsamples: [CGFloat]?) -> Void)
@@ -13,7 +14,14 @@ public protocol DownsampleCacher {
 }
 
 open class DownsampleFileCacher: DownsampleCacher {
-  public var directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+  public lazy var directory: URL = {
+    var dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+    dir = dir.appendingPathComponent("downsamples")
+    if !FileManager.default.fileExists(atPath: dir.path) {
+      try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: false, attributes: nil)
+    }
+    return dir
+  }()
 
   public init() {
   }
@@ -36,6 +44,6 @@ open class DownsampleFileCacher: DownsampleCacher {
   }
 
   open func filePath(for url: URL) -> URL {
-    return directory.appendingPathComponent(url.absoluteString.sha256())
+    return directory.appendingPathComponent((url.absoluteString as NSString).sha256())
   }
 }
