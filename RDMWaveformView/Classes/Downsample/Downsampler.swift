@@ -415,7 +415,11 @@ fileprivate class HandlerInfo {
       let startPos = nextPos
       while referenceUpperBound < reference.nextPos || lastCall {
         guard referenceLowerBound < referenceUpperBound else { break }
-        downsamples[nextPos] = calcAvg(reference)
+        if nextPos < downsamples.count {
+          downsamples[nextPos] = calcAvg(reference)
+        } else {
+          downsamples.append(calcAvg(reference))
+        }
         nextPos += 1
         referenceLowerBound = referenceUpperBound
         referenceUpperBound = calcReferenceUpperBound(reference)

@@ -139,9 +139,7 @@ class AdhocDownsampler {
   private func invokeOperation(_ timeRange: TimeRange,
                                onComplete: @escaping () -> Void,
                                callback: @escaping Callback) {
-    //    var completed = false
-    //    var taskCount: Int32 = 0
-    //    var called: Int32 = 0
+    var lowerBound: Int?
     var upperBound: Int = 0
 
     let operation = DownsampleOperation(audioContext: audioContext,
@@ -162,12 +160,18 @@ class AdhocDownsampler {
           self.operations.remove(at: i)
         }
 
+        if lowerBound == nil {
+          lowerBound = downsampleRange.lowerBound
+        }
         if !downsampleRange.isEmpty {
-          callback(downsampleRange, downsamples[0..<downsamples.count])
           upperBound = max(upperBound, downsampleRange.upperBound)
         }
 
         if lastCall {
+          if let lowerBound = lowerBound, lowerBound < upperBound {
+            let range = lowerBound ..< upperBound
+            callback(range, self.downsamples[range])
+          }
           if Int(ceil(self.audioContext.asset.duration.seconds)) <= timeRange.upperBound {
             // when it has readed the tail of the track
             if upperBound < self.downsamples.count {

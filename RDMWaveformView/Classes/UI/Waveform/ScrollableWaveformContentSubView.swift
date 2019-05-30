@@ -116,14 +116,11 @@ extension ScrollableWaveformContentSubView {
 
   private func prepareDrawing(_ downsampleRange: DownsampleRange, _ downsamples: ArraySlice<CGFloat>) {
     guard let calculator = calculator else { return }
-    let rect = calculator
-      .rectFrom(downsampleRange: downsampleRange, height: self.frame.height)
-      .offsetBy(dx: -contentOffset, dy: 0)
+    let range = 0 ..< downsampleRange.count
+    let rect = calculator.rectFrom(downsampleRange: range, height: self.frame.height)
     let hint = DrawHint(renderID: renderID, downsamples: downsamples, rect: rect)
     self.renderHints.append(hint)
-    // Put some offset on invalidate rect. Without this, the device will
-    // draw a half width line at the edge of the rect.
-    self.setNeedsDisplay(hint.rect.offsetBy(dx: -0.5, dy: 0))
+    self.setNeedsDisplay()
   }
 }
 

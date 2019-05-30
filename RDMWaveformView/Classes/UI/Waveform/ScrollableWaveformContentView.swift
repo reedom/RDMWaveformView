@@ -90,7 +90,7 @@ extension ScrollableWaveformContentView {
       let timeRange = seconds ..< seconds+1
       contentView.isHidden = false
       let baseRect = calculator.rectFrom(timeRange: timeRange, height: frame.height)
-      contentView.frame = baseRect.insetBy(dx: -0.5, dy: 0)
+      contentView.frame = baseRect
       contentView.cancelRendering()
       contentView.startRendering(timeRange: timeRange, contentOffset: baseRect.minX)
       activeContents.append(contentView)

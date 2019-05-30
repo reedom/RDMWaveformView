@@ -50,8 +50,7 @@ extension WaveformCalc {
       guard 0 < lines else { return 1 }
       return max(1, Int(CGFloat(totalSamples) / lines))
     case .perSecond(_, let linesPerSecond, _):
-      let totalLines = duration * Double(linesPerSecond)
-      return max(1, Int(ceil(Double(totalSamples) / totalLines)))
+      return max(1, sampleRate / linesPerSecond)
     }
   }
 
