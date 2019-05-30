@@ -42,4 +42,5 @@ TODO: Add long description of the pod here.
   # s.dependency 'AFNetworking', '~> 2.3'
   s.dependency 'SparseRanges'
   s.dependency 'NSString-Hash', '~> 0.0.1'
+  s.dependency 'GzipSwift', '~> 5.0.0'
 end
