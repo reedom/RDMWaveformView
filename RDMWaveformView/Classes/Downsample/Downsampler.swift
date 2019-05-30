@@ -391,7 +391,7 @@ fileprivate class HandlerInfo {
       for (i, sample) in downsamples.enumerated() {
         self.downsamples[downsampleRange.lowerBound + i] = sample
       }
-      self.nextPos = downsampleRange.upperBound
+      self.nextPos = max(self.nextPos, downsampleRange.upperBound)
 
       if lastCall {
         if nextPos < self.downsamples.count {
