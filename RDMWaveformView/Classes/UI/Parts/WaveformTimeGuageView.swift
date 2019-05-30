@@ -79,7 +79,7 @@ public class WaveformTimeGuageRenderer {
 }
 
 public class WaveformTimeGuageView: UIView {
-  /// Calcurator around waveform and its view.
+  /// Calculator around waveform and its view.
   var calculator: WaveformCalc?
   var rendererParams: WaveformTimeGuageRendererParams?
 
