@@ -385,7 +385,7 @@ fileprivate class HandlerInfo {
     queue.sync { [weak self] in
       guard let self = self else { return }
       if self.downsamples.count < downsampleRange.upperBound {
-        let count = downsampleRange.upperBound - downsamples.count
+        let count = downsampleRange.upperBound - self.downsamples.count
         self.downsamples.append(contentsOf: Array<CGFloat>(repeating: 0, count: count))
       }
       for (i, sample) in downsamples.enumerated() {
