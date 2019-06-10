@@ -21,6 +21,8 @@ public class Marker: NSObject {
     }
   }
 
+  public var skip = false
+
   private var _data: Data?
 
   /// `data` can hold any kind of data that to be bind with a marker.
@@ -47,15 +49,16 @@ public class Marker: NSObject {
   weak var delegate: MarkerDelegate?
 
   /// Initialize the instance.
-  public init(uuid: String, time: TimeInterval, data: Data? = nil, skip: Bool? = false, updated: Date? = nil) {
+  public init(uuid: String, time: TimeInterval, data: Data? = nil, skip: Bool = false, updated: Date? = nil) {
     self.uuid = uuid
     self.time = time
+    self.skip = skip
     self.data = data
     self.updatedAt = updated ?? Date()
   }
 
   /// Initialize the instance.
-  public convenience init(time: TimeInterval, data: Data? = nil, skip: Bool? = false, updated: Date? = nil) {
+  public convenience init(time: TimeInterval, data: Data? = nil, skip: Bool = false, updated: Date? = nil) {
     self.init(uuid: UUID().uuidString, time: time, data: data, skip: skip, updated: updated)
   }
 
@@ -80,6 +83,7 @@ public class Marker: NSObject {
   public func copyPropertiesFrom(_ other: Marker) {
     time = other.time
     data = other.data
+    skip = other.skip
     updatedAt = other.updatedAt
   }
 }

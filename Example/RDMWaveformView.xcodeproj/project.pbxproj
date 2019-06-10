@@ -10,6 +10,7 @@
 		04B904CBC97A4CC1C447380D /* Pods_RDMWaveformView_Example.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B5A4C5B504D3B202D655E87 /* Pods_RDMWaveformView_Example.framework */; };
 		07027825229BDCE100830978 /* AudioContextSpecs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07027824229BDCE100830978 /* AudioContextSpecs.swift */; };
 		07027827229BE52400830978 /* AudioSpecsBase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07027826229BE52400830978 /* AudioSpecsBase.swift */; };
+		070E5C6222AE21A500F6C069 /* MarkersControllerSpecs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 070E5C6022AE218F00F6C069 /* MarkersControllerSpecs.swift */; };
 		0758FA29228909510040CBDC /* BufferIterationHelperSpecs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0758FA28228909510040CBDC /* BufferIterationHelperSpecs.swift */; };
 		0773CF002265BC850061941B /* file_example_MP3_700KB.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 0773CEFF2265BC840061941B /* file_example_MP3_700KB.mp3 */; };
 		077FAF89228542400094A704 /* MarkerSpecs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 077FAF88228542400094A704 /* MarkerSpecs.swift */; };
@@ -39,6 +40,7 @@
 /* Begin PBXFileReference section */
 		07027824229BDCE100830978 /* AudioContextSpecs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioContextSpecs.swift; sourceTree = "<group>"; };
 		07027826229BE52400830978 /* AudioSpecsBase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSpecsBase.swift; sourceTree = "<group>"; };
+		070E5C6022AE218F00F6C069 /* MarkersControllerSpecs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkersControllerSpecs.swift; sourceTree = "<group>"; };
 		0758FA28228909510040CBDC /* BufferIterationHelperSpecs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BufferIterationHelperSpecs.swift; sourceTree = "<group>"; };
 		0773CEFF2265BC840061941B /* file_example_MP3_700KB.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = file_example_MP3_700KB.mp3; sourceTree = "<group>"; };
 		077FAF88228542400094A704 /* MarkerSpecs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkerSpecs.swift; sourceTree = "<group>"; };
@@ -155,6 +157,7 @@
 				607FACE91AFB9204008FA782 /* Supporting Files */,
 				077FAF8C22855B380094A704 /* UIDevice.swift */,
 				0758FA28228909510040CBDC /* BufferIterationHelperSpecs.swift */,
+				070E5C6022AE218F00F6C069 /* MarkersControllerSpecs.swift */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -411,6 +414,7 @@
 			files = (
 				607FACEC1AFB9204008FA782 /* AudioDataControllerSpecs.swift in Sources */,
 				077FAF8B22854BE30094A704 /* DownsampleOperationSepcs.swift in Sources */,
+				070E5C6222AE21A500F6C069 /* MarkersControllerSpecs.swift in Sources */,
 				0758FA29228909510040CBDC /* BufferIterationHelperSpecs.swift in Sources */,
 				077FAF89228542400094A704 /* MarkerSpecs.swift in Sources */,
 				077FAF91228567A40094A704 /* AdhocDownsamplerSpecs.swift in Sources */,
