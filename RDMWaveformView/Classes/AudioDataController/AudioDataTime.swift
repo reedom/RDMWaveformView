@@ -15,12 +15,17 @@ public class AudioDataTime {
     return controller.audioContext
   }
 
+  private var updatingTime = false
+
   /// Current time that `RDMWaveformController` focus on.
   public var currentTime: TimeInterval {
     get { return _currentTime }
     set {
       guard controller.hasAudio else { return }
       _currentTime = newValue
+      guard !updatingTime else { return }
+      updatingTime = true
+      defer { updatingTime = false }
       controller.observers.forEach({ $0.value?.audioDataController?(controller, didUpdateTime: _currentTime, seekMode: seeking)})
       controller.delegate?.audioDataController?(controller, didUpdateTime: _currentTime, seekMode: seeking)
     }
@@ -47,6 +52,9 @@ extension AudioDataTime {
   /// - Parameter excludeNotify: `RDMWaveformController` skips the specified delegate(observer) notify.
   func update(_ time: TimeInterval, excludeNotify: AudioDataControllerDelegate) {
     _currentTime = time
+    guard !updatingTime else { return }
+    updatingTime = true
+    defer { updatingTime = false }
 
     controller.observers.forEach({ (observer) in
       guard
