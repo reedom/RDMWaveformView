@@ -119,6 +119,79 @@ class MarkersControllerSpecs: QuickSpec {
         expect(controller.find(after: 500, excludeSkip: true)).to(beNil())
       }
     }
+
+    describe("surroundMarker") {
+      let controller = MarkersController()
+      let listener = Listener()
+      controller.delegate = listener
+
+      it("does not chenge when currentTime is updated but there is no markers") {
+        controller.currentTime = 1
+        expect(listener.didUpdateSurroundMarkers).to(beFalse())
+      }
+      var markers = [Int:Marker]()
+      [20, 50, 150, 200].forEach { time in
+        markers[time] = Marker(uuid: "\(time)", time: TimeInterval(time), data: nil, skip: true)
+      }
+
+      it("should be updated if new marker is added after currentTime") {
+        controller.currentTime = 100
+        expect(controller.add(markers[150]!)).to(beTrue())
+        expect(listener.didUpdateSurroundMarkers).to(beTrue())
+        expect(controller.surroundMarker.lowerBound).to(beNil())
+        expect(controller.surroundMarker.upperBound?.time) == 150
+      }
+
+      it("should be updated if new marker is added before currentTime") {
+        listener.reset()
+        expect(controller.add(markers[50]!)).to(beTrue())
+        expect(listener.didUpdateSurroundMarkers).to(beTrue())
+        expect(controller.surroundMarker.upperBound?.time) == 150
+        expect(controller.surroundMarker.lowerBound?.time) == 50
+      }
+
+      it("should not be updated if new marker is added but out of current surroundings") {
+        listener.reset()
+        expect(controller.add(markers[20]!)).to(beTrue())
+        expect(controller.add(markers[200]!)).to(beTrue())
+        expect(listener.didUpdateSurroundMarkers).to(beFalse())
+      }
+
+      it("should not be updated if the currentTime changed under current surroundings") {
+        listener.reset()
+        controller.currentTime = 50
+        expect(listener.didUpdateSurroundMarkers).to(beFalse())
+        controller.currentTime = 149.999999999
+        expect(listener.didUpdateSurroundMarkers).to(beFalse())
+      }
+
+      it("should be updated if the currentTime changed beyond current surroundings") {
+        listener.reset()
+        controller.currentTime = 150
+        expect(listener.didUpdateSurroundMarkers).to(beTrue())
+        expect(controller.surroundMarker.upperBound?.time) == 200
+        expect(controller.surroundMarker.lowerBound?.time) == 150
+        controller.currentTime = 149.999999999
+        expect(controller.surroundMarker.upperBound?.time) == 150
+        expect(controller.surroundMarker.lowerBound?.time) == 50
+        controller.currentTime = 200
+        expect(controller.surroundMarker.upperBound?.time).to(beNil())
+        expect(controller.surroundMarker.lowerBound?.time) == 200
+        controller.currentTime = 19.9999999999
+        expect(controller.surroundMarker.upperBound?.time) == 20
+        expect(controller.surroundMarker.lowerBound?.time).to(beNil())
+      }
+
+      it("should be updated if any related marker is removed") {
+        controller.currentTime = 50
+        expect(controller.surroundMarker.upperBound?.time) == 150
+        expect(controller.surroundMarker.lowerBound?.time) == 50
+        controller.remove(markers[150]!)
+        expect(controller.surroundMarker.upperBound?.time) == 200
+        expect(controller.surroundMarker.lowerBound?.time) == 50
+        controller.remove(markers[50]!)
+        expect(controller.surroundMarker.upperBound?.time) == 200
+        expect(controller.surroundMarker.lowerBound?.time) == 20
       }
     }
   }
@@ -132,6 +205,7 @@ fileprivate class Listener: NSObject, MarkersControllerDelegate {
   var didUpdateData: Marker?
   var didRemove: Marker?
   var didRemoveAll = false
+  var didUpdateSurroundMarkers = false
 
   func reset() {
     didAdd = nil
@@ -141,7 +215,7 @@ fileprivate class Listener: NSObject, MarkersControllerDelegate {
     didUpdateData = nil
     didRemove = nil
     didRemoveAll = false
-
+    didUpdateSurroundMarkers = false
   }
 
   func markersController(_ controller: MarkersController, didAdd marker: Marker) {
@@ -164,5 +238,8 @@ fileprivate class Listener: NSObject, MarkersControllerDelegate {
   }
   func markersControllerDidRemoveAllMarkers(_ controller: MarkersController) {
     didRemoveAll = true
+  }
+  func markersController(_ controller: MarkersController, didUpdateSurroundMarkers surroundMarker: SurroundMarker) {
+    didUpdateSurroundMarkers = true
   }
 }

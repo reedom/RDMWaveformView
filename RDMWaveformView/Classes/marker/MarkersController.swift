@@ -31,6 +31,18 @@ open class MarkersController: NSObject {
   public var markers: IndexingIterator<[Marker]> {
     return _markers.makeIterator()
   }
+
+  /// THe current time.
+  public var currentTime: TimeInterval = 0 {
+    didSet {
+      if !surroundMarker.contains(time: currentTime) {
+        updateSurroundMarker()
+      }
+    }
+  }
+  /// Markers that surround `currentTime`
+  public private(set) var surroundMarker = SurroundMarker(upperBound: nil, lowerBound: nil)
+
   /// Indicates whether the user is dragging a marker.
   public private(set) var dragging: Bool = false
 }
@@ -63,10 +75,14 @@ extension MarkersController {
   }
 
   @discardableResult open func add(at time: TimeInterval, skip: Bool = true, data: Data? = nil) -> Marker? {
-    guard _markers.findExact(time) == nil else { return nil }
+    guard _markers.find(exact: time) == nil else { return nil }
     let marker = Marker(time: time, data: data, skip: skip)
     marker.delegate = self
     _markers.add(marker)
+
+    if surroundMarker.contains(time: marker.time) {
+      updateSurroundMarker()
+    }
 
     observers.forEach({ $0.value?.markersController?(self, didAdd: marker)})
     if !loading {
@@ -79,6 +95,11 @@ extension MarkersController {
     guard _markers.remove(marker) else { return false }
 
     marker.delegate = nil
+
+    if surroundMarker.relates(with: marker) {
+      updateSurroundMarker()
+    }
+
     observers.forEach({ $0.value?.markersController?(self, didRemove: marker)})
     if !loading {
       delegate?.markersController?(self, didRemove: marker)
@@ -91,6 +112,7 @@ extension MarkersController {
       marker.delegate = nil
     }
     _markers.removeAll()
+    updateSurroundMarker()
     observers.forEach({ $0.value?.markersControllerDidRemoveAllMarkers?(self)})
     delegate?.markersControllerDidRemoveAllMarkers?(self)
   }
@@ -143,6 +165,41 @@ extension MarkersController {
   open func find(exact time: TimeInterval) -> Marker? {
     return _markers.find(exact: time)
   }
+
+  open func find(surrounding time: TimeInterval) -> SurroundMarker {
+    if _markers.isEmpty {
+      return SurroundMarker.empty
+    }
+
+    let lowerBound: Marker?
+    let upperBound = _markers.find(after: currentTime, excludeSkip: false)
+    if upperBound != nil {
+      lowerBound = _markers.find(before: upperBound!.time, excludeSkip: false)
+    } else {
+      lowerBound = _markers.find(before: currentTime + 1, excludeSkip: false)
+    }
+    return SurroundMarker(upperBound: upperBound, lowerBound: lowerBound)
+  }
+}
+
+extension MarkersController {
+  func updateSurroundMarker() {
+    if _markers.isEmpty {
+      if !surroundMarker.isEmpty {
+        surroundMarker = SurroundMarker(upperBound: nil, lowerBound: nil)
+        observers.forEach({ $0.value?.markersController?(self, didUpdateSurroundMarkers: surroundMarker) })
+        if !loading {
+          delegate?.markersController?(self, didUpdateSurroundMarkers: surroundMarker)
+        }
+      }
+      return
+    }
+
+    surroundMarker = find(surrounding: currentTime)
+    observers.forEach({ $0.value?.markersController?(self, didUpdateSurroundMarkers: surroundMarker) })
+    if !loading {
+      delegate?.markersController?(self, didUpdateSurroundMarkers: surroundMarker)
+    }
   }
 }
 
@@ -164,6 +221,10 @@ extension MarkersController {
 extension MarkersController: MarkerDelegate {
   func markerDidUpdateTime(_ marker: Marker) {
     _markers.updateOrderIfNeeded(updated: marker)
+
+    if surroundMarker.relates(with: marker) || surroundMarker.contains(time: marker.time) {
+      updateSurroundMarker()
+    }
 
     observers.forEach({ $0.value?.markersController?(self, didUpdateTime: marker)})
     if !loading {
