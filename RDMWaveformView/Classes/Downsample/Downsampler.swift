@@ -241,6 +241,7 @@ extension Downsampler {
   // FIXME use NSOperation
   public func findBlankMoments(decibelLessThan: Double,
                                blankMomentLongerThan: TimeInterval,
+                               completionHandler: @escaping () -> Void,
                                callback: @escaping (TimeInterval, TimeInterval) -> Void) -> Bool {
     guard
       let primary = handlers.first,
@@ -285,6 +286,7 @@ extension Downsampler {
       if let muteStart = muteStart, blankMomentLongerThan < muteDuration {
         notify(muteStart, muteStart + muteDuration)
       }
+      completionHandler()
     }
     return true
   }

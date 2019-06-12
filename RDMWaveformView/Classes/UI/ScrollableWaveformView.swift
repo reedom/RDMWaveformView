@@ -221,22 +221,42 @@ open class ScrollableWaveformView: UIView {
 
 extension ScrollableWaveformView {
   public func setMarkersAtBlanks(decibelLessThan: Double,
-                                 blankMomentLongerThan: TimeInterval) {
+                                 blankMomentLongerThan: TimeInterval,
+                                 completionHandler: @escaping ([Marker]) -> Void) {
     guard
       showMarker,
       let downsampler = downsampler,
       let markersController = markersController,
       let audioContext = audioContext
       else { return }
-    downsampler.findBlankMoments(decibelLessThan: decibelLessThan,
-                                 blankMomentLongerThan: blankMomentLongerThan)
+
+    var newMarkers = [Marker]()
+    var knownMarkers = [Marker](markersController.markers)
+
+    let onComplete: () -> Void = { [weak self] in
+      DispatchQueue.main.async {
+        if !newMarkers.isEmpty {
+          self?.markersController?.replaceWith(newMarkers + knownMarkers)
+        }
+        completionHandler(newMarkers)
+      }
+    }
+
+    _ = downsampler.findBlankMoments(decibelLessThan: decibelLessThan,
+                                     blankMomentLongerThan: blankMomentLongerThan,
+                                     completionHandler: onComplete)
     { [weak self] from, to in
       guard self != nil else { return }
+      if let dup = knownMarkers.firstIndex(where: { abs($0.time - from) < 0.001 }) {
+        knownMarkers.removeSubrange(0 ..< dup)
+        return
+      }
+
       if 0 < from {
-        markersController.add(at: from, skip: true)
+        newMarkers.append(Marker(time: from, data: nil, skip: true))
       }
       if to < audioContext.asset.duration.seconds {
-        markersController.add(at: to)
+        newMarkers.append(Marker(time: to))
       }
     }
   }
