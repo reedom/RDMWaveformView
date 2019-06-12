@@ -15,9 +15,9 @@ class MarkersControllerSpecs: QuickSpec {
         controller.removeAll()
         controller.replaceWith([])
         expect(controller.find(uuid: "A")).to(beNil())
-        expect(controller.findExact(0)).to(beNil())
-        expect(controller.findAfter(0, excludeSkip: false)).to(beNil())
-        expect(controller.findBefore(0, excludeSkip: false)).to(beNil())
+        expect(controller.find(exact: 0)).to(beNil())
+        expect(controller.find(after: 0, excludeSkip: false)).to(beNil())
+        expect(controller.find(before: 0, excludeSkip: false)).to(beNil())
       }
     }
 
@@ -96,27 +96,29 @@ class MarkersControllerSpecs: QuickSpec {
         expect(controller.find(uuid: "Z")).to(beNil())
       }
       it("find a marker by time") {
-        expect(controller.findExact(200)) == markers[1]
-        expect(controller.findExact(300)) == markers[2]
-        expect(controller.findExact(999)).to(beNil())
+        expect(controller.find(exact: 200)) == markers[1]
+        expect(controller.find(exact: 300)) == markers[2]
+        expect(controller.find(exact: 999)).to(beNil())
       }
       it("find a prior marker by time") {
-        expect(controller.findBefore(100, excludeSkip: false)).to(beNil())
-        expect(controller.findBefore(101, excludeSkip: false)) == markers[0]
-        expect(controller.findBefore(101, excludeSkip: true)).to(beNil())
-        expect(controller.findBefore(200, excludeSkip: false)) == markers[0]
-        expect(controller.findBefore(201, excludeSkip: false)) == markers[1]
-        expect(controller.findBefore(500, excludeSkip: false)) == markers[3]
-        expect(controller.findBefore(501, excludeSkip: false)) == markers[4]
-        expect(controller.findBefore(501, excludeSkip: true)) == markers[3]
+        expect(controller.find(before: 100, excludeSkip: false)).to(beNil())
+        expect(controller.find(before: 101, excludeSkip: false)) == markers[0]
+        expect(controller.find(before: 101, excludeSkip: true)).to(beNil())
+        expect(controller.find(before: 200, excludeSkip: false)) == markers[0]
+        expect(controller.find(before: 201, excludeSkip: false)) == markers[1]
+        expect(controller.find(before: 500, excludeSkip: false)) == markers[3]
+        expect(controller.find(before: 501, excludeSkip: false)) == markers[4]
+        expect(controller.find(before: 501, excludeSkip: true)) == markers[3]
       }
       it("find a following marker by time") {
-        expect(controller.findAfter(99, excludeSkip: false)) == markers[0]
-        expect(controller.findAfter(99, excludeSkip: true)) == markers[1]
-        expect(controller.findAfter(100, excludeSkip: false)) == markers[1]
-        expect(controller.findAfter(499, excludeSkip: false)) == markers[4]
-        expect(controller.findAfter(499, excludeSkip: true)).to(beNil())
-        expect(controller.findAfter(500, excludeSkip: true)).to(beNil())
+        expect(controller.find(after: 99, excludeSkip: false)) == markers[0]
+        expect(controller.find(after: 99, excludeSkip: true)) == markers[1]
+        expect(controller.find(after: 100, excludeSkip: false)) == markers[1]
+        expect(controller.find(after: 499, excludeSkip: false)) == markers[4]
+        expect(controller.find(after: 499, excludeSkip: true)).to(beNil())
+        expect(controller.find(after: 500, excludeSkip: true)).to(beNil())
+      }
+    }
       }
     }
   }

@@ -41,12 +41,16 @@ extension MarkersController {
   @discardableResult open func add(_ marker: Marker) -> Bool {
     guard
       marker.delegate == nil,
-      _markers.findExact(marker.time) == nil,
+      _markers.find(exact: marker.time) == nil,
       !_markers.contains(uuid: marker.uuid)
       else { return false }
-
     marker.delegate = self
     _markers.add(marker)
+
+    if surroundMarker.contains(time: marker.time) {
+      updateSurroundMarker()
+    }
+
     observers.forEach({ $0.value?.markersController?(self, didAdd: marker)})
     if !loading {
       delegate?.markersController?(self, didAdd: marker)
@@ -126,18 +130,19 @@ extension MarkersController {
   }
 
   /// Look up any marker that places right before `time`.
-  open func findBefore(_ time: TimeInterval, excludeSkip: Bool) -> Marker? {
-    return _markers.findBefore(time, excludeSkip: excludeSkip)
+  open func find(before time: TimeInterval, excludeSkip: Bool) -> Marker? {
+    return _markers.find(before: time, excludeSkip: excludeSkip)
   }
 
   /// Look up any marker that places right after `time`.
-  open func findAfter(_ time: TimeInterval, excludeSkip: Bool) -> Marker? {
-    return _markers.findAfter(time, excludeSkip: excludeSkip)
+  open func find(after time: TimeInterval, excludeSkip: Bool) -> Marker? {
+    return _markers.find(after: time, excludeSkip: excludeSkip)
   }
 
   /// Look up any marker that places right after `time`.
-  open func findExact(_ time: TimeInterval) -> Marker? {
-    return _markers.findExact(time)
+  open func find(exact time: TimeInterval) -> Marker? {
+    return _markers.find(exact: time)
+  }
   }
 }
 
@@ -201,7 +206,7 @@ private class Markers {
   }
 
   func add(_ marker: Marker) {
-    if let pos = markers.firstIndex(where: { marker.time <= $0.time }) {
+    if let pos = markers.firstIndex(where: { marker.time.isEqual(to: $0.time) || marker.time < $0.time }) {
       markers.insert(marker, at: pos)
     } else {
       markers.append(marker)
@@ -248,9 +253,9 @@ private class Markers {
     return markers.first(where: { $0.uuid == uuid })
   }
 
-  func findBefore(_ time: TimeInterval, excludeSkip: Bool) -> Marker? {
+  func find(before time: TimeInterval, excludeSkip: Bool) -> Marker? {
     var pos: Int!
-    pos = markers.firstIndex(where: { time <= $0.time })
+    pos = markers.firstIndex(where: { time.isEqual(to: $0.time) || time < $0.time })
     if pos == nil {
       if let marker = markers.last, marker.time < time {
         pos = markers.count
@@ -266,12 +271,12 @@ private class Markers {
     return 0 <= pos ? markers[pos] : nil
   }
 
-  func findAfter(_ time: TimeInterval, excludeSkip: Bool) -> Marker? {
-    return markers.first(where: { (!excludeSkip || !$0.skip) && time < $0.time })
+  func find(after time: TimeInterval, excludeSkip: Bool) -> Marker? {
+    return markers.first(where: { (!excludeSkip || !$0.skip) && !time.isEqual(to: $0.time) && time < $0.time })
   }
 
-  func findExact(_ time: TimeInterval) -> Marker? {
-    if let pos = markers.firstIndex(where: { time <= $0.time }) {
+  func find(exact time: TimeInterval) -> Marker? {
+    if let pos = markers.firstIndex(where: { time.isEqual(to: $0.time) || time < $0.time }) {
       if time.isEqual(to: markers[pos].time) {
         return markers[pos]
       } else if 0 < pos && time.isEqual(to: markers[pos-1].time) {
