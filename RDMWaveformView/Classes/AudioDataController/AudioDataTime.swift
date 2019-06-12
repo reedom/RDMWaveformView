@@ -83,6 +83,12 @@ extension AudioDataTime {
     }
   }
 
+  public func seek(to time: TimeInterval) {
+    enterSeekMode()
+    currentTime = time
+    leaveSeekMode()
+  }
+
   /// The user starts scrubbing the audio track.
   func enterSeekMode() {
     guard controller.hasAudio else { return }
