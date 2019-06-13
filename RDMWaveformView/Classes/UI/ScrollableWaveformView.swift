@@ -447,11 +447,14 @@ extension ScrollableWaveformView: UIScrollViewDelegate {
 
   // any offset changes
   public func scrollViewDidScroll(_ scrollView: UIScrollView) {
+    let seconds = timeFromScrollOffset()
+
     // markerContainer
+
     if showMarker {
       let dx = (contentView.frame.minX - scrollView.contentOffset.x) - markersView.frame.minX
       markersView.frame = markersView.frame.offsetBy(dx: dx, dy: 0)
-      markersView.currentTime = controller?.time.currentTime ?? 0
+      markersView.currentTime = seconds
       markersView.contentOffset = scrollView.contentOffset.x
       markersView.updateDraggingMarkerPosition(scrollDelta: scrollView.contentOffset.x - lastScrollContentOffset)
     }
@@ -466,7 +469,6 @@ extension ScrollableWaveformView: UIScrollViewDelegate {
 
     // delegate
 
-    let seconds = timeFromScrollOffset()
     self.controller?.time.update(seconds, excludeNotify: self)
   }
 
