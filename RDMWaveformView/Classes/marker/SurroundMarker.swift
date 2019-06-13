@@ -20,7 +20,7 @@ public class SurroundMarker: NSObject {
 }
 
 extension SurroundMarker {
-  var isEmpty: Bool {
+  public var isEmpty: Bool {
     return upperBound == nil && lowerBound == nil
   }
 
