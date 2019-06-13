@@ -35,6 +35,7 @@ open class MarkersController: NSObject {
   /// THe current time.
   public var currentTime: TimeInterval = 0 {
     didSet {
+      guard !currentTime.isEqual(to: oldValue) else { return }
       if !surroundMarker.contains(time: currentTime) {
         updateSurroundMarker()
       }
@@ -136,6 +137,8 @@ extension MarkersController {
       guard !markers.contains(where: { $0.uuid == marker.uuid }) else { continue }
       remove(marker)
     }
+    loading = false
+    updateSurroundMarker()
   }
 }
 
