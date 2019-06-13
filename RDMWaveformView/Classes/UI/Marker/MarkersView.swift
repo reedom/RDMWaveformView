@@ -147,6 +147,7 @@ extension MarkersView {
 
     // Create any markerViews for newly created markers as their visual representation.
 
+    let markerRect = self.markerRect
     markersController.markers
       .filter { markerViews[$0.uuid] == nil }
       .forEach { (marker) in
@@ -187,6 +188,7 @@ extension MarkersView {
 
   /// Creates and adds specifiec number of `MarkerView` for their conterparts.
   private func addMarkerViews(markers: [Marker]) {
+    let markerRect = self.markerRect
     markers.forEach({ (marker) in
       guard markerViews[marker.uuid] == nil else {
         debugPrint("MarkersView.addMarkerViews: markerView has already been created")

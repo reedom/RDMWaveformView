@@ -95,14 +95,12 @@ open class WaveformView: UIView {
     return view
   }()
 
-  public lazy var markersView: MarkersView = {
-    let view = MarkersView()
+  public lazy var markersView: MarkersStaticView = {
+    let view = MarkersStaticView()
     addSubview(view)
     view.backgroundColor = UIColor.transparent
     view.markerSize = CGSize(width: 4, height: 4)
-    view.markerTouchSize = view.markerSize
     view.markerLineColor = UIColor.transparent
-    view.draggable = false
     return view
   }()
 
@@ -174,7 +172,8 @@ extension WaveformView {
                                  y: 0,
                                  width: contentView.frame.width,
                                  height: markersView.markerSize.height)
-      markersView.setNeedsLayout()
+      markersView.duration = controller?.audioContext?.asset.duration.seconds ?? 0
+      markersView.setNeedsDisplay()
     }
     contentView.setNeedsLayout()
   }
@@ -182,12 +181,10 @@ extension WaveformView {
   private func refreshWaveform() {
     guard Thread.isMainThread else {
       DispatchQueue.main.async {
-        self.markersView.duration = self.controller?.audioContext?.asset.duration.seconds ?? 0
-        self.setNeedsLayout()
+        self.refreshWaveform()        
       }
       return
     }
-    markersView.duration = controller?.audioContext?.asset.duration.seconds ?? 0
     setNeedsLayout()
   }
 
@@ -254,10 +251,10 @@ extension WaveformView {
       let time = controller?.time.currentTime
       else { return }
     let progress = time / duration.seconds
-    cursorView.frame = CGRect(x: frame.width * CGFloat(progress),
-                              y: 0,
+    cursorView.frame = CGRect(x: frame.width * CGFloat(progress) - cursorView.frame.width / 2,
+                              y: markersView.markerSize.height,
                               width: cursorWidth,
-                              height: bounds.height)
+                              height: bounds.height - markersView.markerSize.height)
   }
 }
 
