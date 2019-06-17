@@ -286,28 +286,17 @@ extension ScrollableWaveformView {
 
     // Layout markersContainer and scrollView
 
+    var rect = bounds
     if showMarker {
-      scrollView.frame = CGRect(x: 0,
-                                y: markersView.markerTouchSize.height,
-                                width: bounds.width,
-                                height: bounds.height - markersView.markerTouchSize.height)
-    } else {
-      scrollView.frame = bounds
-    }
-
-    if showCenterGuide {
+      rect = rect.insetBy(dx: 0, dy: markersView.markerTouchSize.height / 2)
+      rect = rect.offsetBy(dx: 0, dy: markersView.markerTouchSize.height / 2)
+    } else if showCenterGuide {
+      rect = rect.insetBy(dx: 0, dy: centerGuide.markerDiameter)
       if showGuage {
-        // Cut top `centerGuide.markerDiameter` pixels off.
-        // (No need to cut bottom since the bottom marker overlays in the guage area)
-        scrollView.frame = scrollView.frame
-          .insetBy(dx: 0, dy: centerGuide.markerDiameter)
-          .offsetBy(dx: 0, dy: centerGuide.markerDiameter / 2)
-      } else {
-        // Shrink vertically
-        scrollView.frame = scrollView.frame
-          .insetBy(dx: 0, dy: centerGuide.markerDiameter)
+        rect = rect.offsetBy(dx: 0, dy: centerGuide.markerDiameter / 2)
       }
     }
+    scrollView.frame = rect
 
     // Layout scrollView's subviews
 
@@ -358,8 +347,8 @@ extension ScrollableWaveformView {
     // Reorder subviews
 
     scrollView.sendSubviewToBack(contentBackgroundView)
-    bringSubviewToFront(centerGuide)
     bringSubviewToFront(markersView)
+    bringSubviewToFront(centerGuide)
     bringSubviewToFront(guageView)
 
     // Advice subviews to render

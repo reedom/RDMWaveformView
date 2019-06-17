@@ -15,7 +15,7 @@ open class MarkersView: UIView {
 
   /// The size of invisible UI responsive area where the user taps and drags.
   /// The size also affects the height of `MarkersView`
-  open var markerTouchSize = CGSize(width: 46, height: 46)
+  open var markerTouchSize = CGSize(width: 40, height: 40)
   /// The size of a marker's visual representation triangle.
   open var markerSize = CGSize(width: 8, height: 12)
   /// The color of a marker's triangle.
@@ -106,7 +106,7 @@ open class MarkersView: UIView {
     addSubview(button)
     button.setTitle("＋", for: .normal)
     button.contentHorizontalAlignment = .center
-    button.contentVerticalAlignment = .bottom
+    button.contentVerticalAlignment = .center
     button.setTitleColor(markerColor, for: .normal)
     button.addTarget(self, action: #selector(addMarker), for: .touchUpInside)
     button.isHidden = !showAddMarkerButton
