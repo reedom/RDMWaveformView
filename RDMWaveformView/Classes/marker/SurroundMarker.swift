@@ -16,7 +16,7 @@ public class SurroundMarker: NSObject {
     self.lowerBound = lowerBound
   }
 
-  static let empty = SurroundMarker(upperBound: nil, lowerBound: nil)
+  public static let empty = SurroundMarker(upperBound: nil, lowerBound: nil)
 }
 
 extension SurroundMarker {
@@ -48,5 +48,11 @@ extension SurroundMarker {
       return true
     }
     return false
+  }
+}
+
+extension SurroundMarker {
+  override public var description: String {
+    return "SurroundMarker(lowerBound: \(String(describing: lowerBound?.time)), upperBound: \(String(describing: upperBound?.time))"
   }
 }

@@ -43,6 +43,4 @@ import Foundation
   ///
   /// - Parameter controller: The event source.
   @objc optional func markersControllerDidRemoveAllMarkers(_ controller: MarkersController)
-
-  @objc optional func markersController(_ controller: MarkersController, didUpdateSurroundMarkers surroundMarker: SurroundMarker)
 }
