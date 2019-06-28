@@ -8,6 +8,11 @@
 import Foundation
 
 @objc public protocol MarkersControllerDelegate: NSObjectProtocol {
+  /// Tells the delegate when it adds zero or more markers.
+  ///
+  /// - Parameter controller: The event source.
+  /// - Parameter marker: The subject.
+  @objc optional func markersControllerDidAddMarkers(_ controller: MarkersController)
   /// Tells the delegate when a new marker is added to the controller.
   ///
   /// - Parameter controller: The event source.

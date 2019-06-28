@@ -113,6 +113,7 @@ extension MarkersController {
       remove(marker)
     }
     loading = false
+    delegate?.markersControllerDidAddMarkers?(self)
   }
 }
 
