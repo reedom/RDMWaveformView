@@ -252,9 +252,7 @@ extension ScrollableWaveformView {
         return
       }
 
-      if 0 < from {
-        newMarkers.append(Marker(time: from, data: nil, skip: true))
-      }
+      newMarkers.append(Marker(time: from, data: nil, skip: true))
       if to < audioContext.asset.duration.seconds {
         newMarkers.append(Marker(time: to))
       }
